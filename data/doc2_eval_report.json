@@ -1,0 +1,161 @@
+{
+  "dataset": "doc2",
+  "top_k": 3,
+  "num_samples": 10,
+  "recall_at_k": 0.9,
+  "mrr_at_k": 0.7833333333333333,
+  "num_generated": 10,
+  "exact_match": 1.0,
+  "results": [
+    {
+      "sample_id": "doc2-01",
+      "question": "What is the corrected net_rev_eur for DE-442 on 2025-06-07?",
+      "retrieved": [
+        "text:document2.txt:EUROPE — weekly store rollup (DIFFERENT COLUMN ORD",
+        "table:document2.txt:EUROPE — weekly store rollup (DIFFERENT COLUMN ORD",
+        "table:document2.txt:NORTH AMERICA — weekly store rollup (pasted from E"
+      ],
+      "hit_rank": 1,
+      "prediction": "The corrected net_rev_eur for DE-442 on 2025-06-07 is 391005.15.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "doc2-02",
+      "question": "What is the average stock_quantity for products in the warehouse?",
+      "retrieved": [
+        "text:document2.txt:RANDOM EMAIL THREAD EXCERPT (contains numbers that",
+        "table:document2.txt:PRODUCT MOVEMENT — warehouse bay snapshot (no prim",
+        "text:document2.txt:PRODUCT MOVEMENT — warehouse bay snapshot (no prim"
+      ],
+      "hit_rank": 2,
+      "prediction": "The average stock quantity (on-hand) for products in the warehouse is 851.86.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT avg(oh) FROM product_movement",
+      "error": null
+    },
+    {
+      "sample_id": "doc2-03",
+      "question": "How many units of WB-8841 are available to sell according to Shopify vs WMS?",
+      "retrieved": [
+        "text:document2.txt:INVENTORY RECONCILIATION NOTES — 2025-06-27",
+        "text:document2.txt:PRODUCT MOVEMENT — warehouse bay snapshot (no prim",
+        "table:document2.txt:PRODUCT MOVEMENT — warehouse bay snapshot (no prim"
+      ],
+      "hit_rank": 1,
+      "prediction": "According to the provided documents, the WMS reports 3,310 units of WB-8841 available. The Shopify sellable inventory is 3,295 units.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "doc2-04",
+      "question": "What is the refund rate for NA-WEST stores for the week ending 2025-06-14?",
+      "retrieved": [
+        "table:document2.txt:NORTH AMERICA — weekly store rollup (pasted from E",
+        "text:document2.txt:MARKETING ATTRIBUTION — narrative only (no table)",
+        "table:document2.txt:EUROPE — weekly store rollup (DIFFERENT COLUMN ORD"
+      ],
+      "hit_rank": 1,
+      "prediction": "The refund rate for NA-WEST stores for the week ending 2025-06-14 is approximately 3.53% (0.03531409168081494).",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT SUM(refund_cnt) / SUM(units_rev) FROM north_america WHERE region = 'NA-WEST' AND wk_end = '2025-06-14'",
+      "error": null
+    },
+    {
+      "sample_id": "doc2-05",
+      "question": "What is the total net revenue in USD across all NA stores for 2025-06-14?",
+      "retrieved": [
+        "text:document2.txt:Q1 2025 ARCHIVE SUMMARY (compressed; same stores, ",
+        "table:document2.txt:EUROPE — weekly store rollup (DIFFERENT COLUMN ORD",
+        "table:document2.txt:NORTH AMERICA — weekly store rollup (pasted from E"
+      ],
+      "hit_rank": 3,
+      "prediction": "The total net revenue across all NA stores for 2025-06-14 is 1,965,043.30 USD.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT SUM(net_rev_usd) FROM north_america WHERE wk_end = '2025-06-14'",
+      "error": null
+    },
+    {
+      "sample_id": "doc2-06",
+      "question": "How many support tickets mention firmware v3.2.1 and requested a refund?",
+      "retrieved": [
+        "text:document2.txt:CUSTOMER SUPPORT — Zendesk theme extract (free tex",
+        "text:document2.txt:CUSTOMER SUPPORT — Zendesk theme extract (free tex",
+        "text:document2.txt:MEMO — Operations (author: J. Patel, 2025-06-12)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Answer: I don't know. While the context notes that 37 tickets mention firmware v3.2.1 between 6/15 and 6/22, the provided documents do not state how many of those tickets included a request for a refund.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "doc2-07",
+      "question": "What is the attributable incremental revenue from campaign SummerGlow?",
+      "retrieved": [
+        "text:document2.txt:MARKETING ATTRIBUTION — narrative only (no table)",
+        "text:document2.txt:MEMO — Operations (author: J. Patel, 2025-06-12)",
+        "text:document2.txt:RANDOM EMAIL THREAD EXCERPT (contains numbers that"
+      ],
+      "hit_rank": 1,
+      "prediction": "The attributable incremental revenue for campaign SummerGlow is $42,000 according to the BI team (using the last-touch methodology) or $68,000 according to the brand team (using a blended model). Per the provided instructions, neither figure is considered authoritative as they do not appear in the store rollup exports.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "doc2-08",
+      "question": "What is the average basket size in NA?",
+      "retrieved": [
+        "text:document2.txt:RANDOM EMAIL THREAD EXCERPT (contains numbers that",
+        "text:document2.txt:MARKETING ATTRIBUTION — narrative only (no table)",
+        "text:document2.txt:MEMO — Operations (author: J. Patel, 2025-06-12)"
+      ],
+      "hit_rank": null,
+      "prediction": "The average basket size in NA is $156.50.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT AVG(avg_basket) FROM north_america;",
+      "error": null
+    },
+    {
+      "sample_id": "doc2-09",
+      "question": "Which product variants are below the reorder threshold?",
+      "retrieved": [
+        "text:document2.txt:INVENTORY RECONCILIATION NOTES — 2025-06-27",
+        "text:document2.txt:MEMO — Operations (author: J. Patel, 2025-06-12)",
+        "text:document2.txt:RANDOM EMAIL THREAD EXCERPT (contains numbers that"
+      ],
+      "hit_rank": 1,
+      "prediction": "The product variants in the CH-902 family are below the reorder threshold.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "doc2-10",
+      "question": "What is the APAC refund count for SG-05 on 2025-06-07?",
+      "retrieved": [
+        "table:document2.txt:APAC — partial dump (export FAILED row 84; file tr",
+        "text:document2.txt:MEMO — Operations (author: J. Patel, 2025-06-12)",
+        "table:document2.txt:EUROPE — weekly store rollup (DIFFERENT COLUMN ORD"
+      ],
+      "hit_rank": 1,
+      "prediction": "I don't know.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT refunds FROM apac WHERE store = 'SG-05' AND week = '2025-06-07'",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "dataset": "wtq",
+  "top_k": 3,
+  "num_samples": 15,
+  "recall_at_k": 0.8666666666666667,
+  "mrr_at_k": 0.788888888888889,
+  "num_generated": 15,
+  "exact_match": 0.6666666666666666,
+  "results": [
+    {
+      "sample_id": "nt-16",
+      "question": "how many total points did the bombers score against the bc lions?",
+      "retrieved": [
+        "table:csv/204-csv/227.tsv:(document)",
+        "table:csv/204-csv/256.tsv:(document)",
+        "table:csv/204-csv/475.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "The Bombers scored a total of 48 points against the BC Lions. This is the sum of the scores from their two games: 29 points (Week 5) and 19 points (Week 12).",
+      "answer_correct": false,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "nt-17",
+      "question": "which is the first city listed alphabetically?",
+      "retrieved": [
+        "table:csv/203-csv/580.tsv:(document)",
+        "table:csv/201-csv/21.tsv:(document)",
+        "table:csv/204-csv/299.tsv:(document) (rows 1-50)"
+      ],
+      "hit_rank": 3,
+      "prediction": "Answer: Abbott",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "nt-18",
+      "question": "how many movies have links to other wikipedia pages about them?",
+      "retrieved": [
+        "table:csv/201-csv/21.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/204-csv/299.tsv:(document) (rows 1-50)"
+      ],
+      "hit_rank": 1,
+      "prediction": "I don't know. The provided document tables do not contain information regarding hyperlinks to other Wikipedia pages.",
+      "answer_correct": false,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "nt-19",
+      "question": "in how many games did the winning team score more than 4 points?",
+      "retrieved": [
+        "table:csv/204-csv/227.tsv:(document)",
+        "table:csv/204-csv/475.tsv:(document)",
+        "table:csv/203-csv/580.tsv:(document)"
+      ],
+      "hit_rank": 2,
+      "prediction": "16",
+      "answer_correct": false,
+      "route": "hybrid",
+      "sql": "SELECT COUNT(*) FROM tbl WHERE CAST(SUBSTRING(score, 1, INSTR(score, '–') - 1) AS INTEGER) > 4 OR CAST(SUBSTRING(score, INSTR(score, '–') + 1) AS INTEGER) > 4",
+      "error": null
+    },
+    {
+      "sample_id": "nt-20",
+      "question": "which album released by the band schnell fenster produced the most singles appearing on the australian peak chart?",
+      "retrieved": [
+        "table:csv/202-csv/184.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/203-csv/580.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "The album that produced the most singles appearing on the Australian peak chart is The Sound Of Trees.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT album FROM tbl_5 GROUP BY album ORDER BY COUNT(title) DESC LIMIT 1",
+      "error": null
+    },
+    {
+      "sample_id": "nt-21",
+      "question": "which model has the most in service?",
+      "retrieved": [
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/203-csv/36.tsv:(document)",
+        "table:csv/201-csv/21.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Based on the provided tables and the computed result, the model with the most units in service is the KM-45 Series (with 727 units listed in the \"In Service\" column).",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT model FROM tbl_6 WHERE try_cast(in_service AS BIGINT) IS NOT NULL ORDER BY try_cast(in_service AS BIGINT) DESC LIMIT 1",
+      "error": null
+    },
+    {
+      "sample_id": "nt-22",
+      "question": "which ship in auckland had the fastest speed in knots?",
+      "retrieved": [
+        "table:csv/203-csv/774.tsv:(document)",
+        "table:csv/203-csv/580.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "To determine which ship in Auckland had the fastest speed, we look at the vessels listed with \"Auckland\" in the Port column:\n\n*   **Hipi:** 8 knots\n*   **Manawanui i:** 10 knots\n*   **Meola:** 9 knots\n\nComparing these speeds (8, 10, and 9 knots), the **Manawanui i** had the fastest speed.",
+      "answer_correct": true,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "nt-23",
+      "question": "what counties had the least participants for the race?",
+      "retrieved": [
+        "table:csv/204-csv/299.tsv:(document) (rows 51-100)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/204-csv/299.tsv:(document) (rows 1-50)"
+      ],
+      "hit_rank": null,
+      "prediction": "I don't know. The provided documents do not contain information regarding a race or participant counts.",
+      "answer_correct": false,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    },
+    {
+      "sample_id": "nt-25",
+      "question": "what's the number of parishes founded in the 1800s?",
+      "retrieved": [
+        "table:csv/203-csv/36.tsv:(document)",
+        "table:csv/203-csv/580.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "The number of parishes founded in the 1800s is 4.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT count(*) FROM tbl_9 WHERE founded >= 1800 AND founded <= 1899",
+      "error": null
+    },
+    {
+      "sample_id": "nt-26",
+      "question": "what club scored the only a total of 79 points?",
+      "retrieved": [
+        "table:csv/204-csv/256.tsv:(document)",
+        "table:csv/204-csv/475.tsv:(document)",
+        "table:csv/204-csv/227.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Málaga CF",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT club FROM tbl_10 WHERE points = 79",
+      "error": null
+    },
+    {
+      "sample_id": "nt-27",
+      "question": "in 1996 the sc house of representatives had a republican majority. how many years had passed since the last time this happened?",
+      "retrieved": [
+        "table:csv/203-csv/95.tsv:(document)",
+        "table:csv/201-csv/21.tsv:(document)",
+        "table:csv/203-csv/577.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Based on the provided document and the computed SQL result, 122 years had passed since the last time the Republican Party held a majority in the SC House of Representatives prior to 1996.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT 1996 - MAX(CAST(year AS BIGINT)) FROM tbl_11 WHERE republican_nparty > democratic_nparty AND CAST(year AS BIGINT) < 1996",
+      "error": null
+    },
+    {
+      "sample_id": "nt-28",
+      "question": "which kind of computer can most of the games be played on?",
+      "retrieved": [
+        "table:csv/203-csv/580.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/203-csv/36.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Based on the provided document tables, most of the games can be played on Windows.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT computer FROM tbl_12 GROUP BY computer ORDER BY COUNT(*) DESC LIMIT 1",
+      "error": null
+    },
+    {
+      "sample_id": "nt-30",
+      "question": "what was the average number of years served by a coach?",
+      "retrieved": [
+        "table:csv/203-csv/577.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/203-csv/36.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "The average number of years served by a coach is 7.774193548387097.",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT AVG(CAST(REGEXP_EXTRACT(years, '\\d+') AS DOUBLE)) FROM tbl_13",
+      "error": null
+    },
+    {
+      "sample_id": "nt-31",
+      "question": "how many beta versions were released before the first full release?",
+      "retrieved": [
+        "table:csv/203-csv/743.tsv:(document)",
+        "table:csv/203-csv/580.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)"
+      ],
+      "hit_rank": 1,
+      "prediction": "Based on the provided document, there were 8 beta versions released before the first full release (version 1.0).\n\nThe beta versions listed are:\n1. Version 0.1 (9 June 1993)\n2. Version 0.2 (14 June 1993)\n3. Version 0.3 (16 June 1993)\n4. Version 0.4 (18 June 1993)\n5. Version 0.5 (24 June 1993)\n6. Version 0.6 (30 June 1993)\n7. Version 0.8 (5 November 1993)\n8. Version 0.9 (16 November 1993)\n\n(Note: Version 0.9 dated 12 November 1993 is listed as \"Beta-pre\", and the 22 November 1993 version is listed as \"WINSOCK alpha r9.2\", both falling outside the \"Beta\" development cycle designation.)",
+      "answer_correct": true,
+      "route": "hybrid",
+      "sql": "SELECT count(*) FROM tbl_14 WHERE development_cycle = 'Beta' AND date < (SELECT min(date) FROM tbl_14 WHERE development_cycle != 'Beta')",
+      "error": null
+    },
+    {
+      "sample_id": "nt-32",
+      "question": "which name is first on the chart",
+      "retrieved": [
+        "table:csv/202-csv/184.tsv:(document)",
+        "table:csv/204-csv/430.tsv:(document)",
+        "table:csv/201-csv/21.tsv:(document)"
+      ],
+      "hit_rank": null,
+      "prediction": "\"Whisper\"",
+      "answer_correct": false,
+      "route": "lookup",
+      "sql": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+[
+  {
+    "query": "What is the corrected net_rev_eur for DE-442 on 2025-06-07?",
+    "expected": "391005.15 EUR (finance restatement 6/20; was 388220.15)",
+    "tablerag_answer": "391005.15",
+    "route": "lookup",
+    "sql": null,
+    "sql_result": null,
+    "retrieved_sections": [
+      "text:EUROPE \u2014 weekly store rollup (DIFFERENT COLUMN ORDER than NA",
+      "table:EUROPE \u2014 weekly store rollup (DIFFERENT COLUMN ORDER than NA",
+      "table:NORTH AMERICA \u2014 weekly store rollup (pasted from Excel, cols"
+    ]
+  },
+  {
+    "query": "What is the average stock_quantity for products in the warehouse?",
+    "expected": "No stock_quantity column in warehouse snapshot; if using on-hand (oh): 851.86 avg across 7 SKUs; if avail: 685.43. Question uses wrong field name.",
+    "tablerag_answer": "Answer: 851.8571428571429",
+    "route": "hybrid",
+    "sql": "SELECT avg(oh) FROM product_movement",
+    "sql_result": "[{'avg(oh)': 851.8571428571429}]",
+    "retrieved_sections": [
+      "text:RANDOM EMAIL THREAD EXCERPT (contains numbers that look like",
+      "table:PRODUCT MOVEMENT \u2014 warehouse bay snapshot (no primary key; s",
+      "text:PRODUCT MOVEMENT \u2014 warehouse bay snapshot (no primary key; s"
+    ]
+  },
+  {
+    "query": "How many units of WB-8841 are available to sell according to Shopify vs WMS?",
+    "expected": "WMS avail: 3310; Shopify sellable: 3295 (reconciliation notes 2025-06-27)",
+    "tablerag_answer": "According to the inventory reconciliation notes, there is a mismatch for WB-8841: the WMS reports 3310 units available, while Shopify lists 3295 units available.",
+    "route": "lookup",
+    "sql": null,
+    "sql_result": null,
+    "retrieved_sections": [
+      "text:INVENTORY RECONCILIATION NOTES \u2014 2025-06-27",
+      "text:PRODUCT MOVEMENT \u2014 warehouse bay snapshot (no primary key; s",
+      "table:PRODUCT MOVEMENT \u2014 warehouse bay snapshot (no primary key; s"
+    ]
+  },
+  {
+    "query": "What is the refund rate for NA-WEST stores for the week ending 2025-06-14?",
+    "expected": "208 refund_cnt / 5890 units_rev \u2248 3.53% (S0201: 189/4988 + S0333: 19/902 combined)",
+    "tablerag_answer": "Based on the provided SQL computation, the refund rates for NA-WEST stores for the week ending 2025-06-14 are approximately 3.79% (store S0201) and 2.11% (store S0333).",
+    "route": "hybrid",
+    "sql": "SELECT CAST(refund_cnt AS DOUBLE) / units_rev AS refund_rate FROM north_america WHERE region = 'NA-WEST' AND wk_end = '2025-06-14'",
+    "sql_result": "[{'refund_rate': 0.03789093825180433}, {'refund_rate': 0.02106430155210643}]",
+    "retrieved_sections": [
+      "table:NORTH AMERICA \u2014 weekly store rollup (pasted from Excel, cols",
+      "text:MARKETING ATTRIBUTION \u2014 narrative only (no table)",
+      "table:EUROPE \u2014 weekly store rollup (DIFFERENT COLUMN ORDER than NA"
+    ]
+  },
+  {
+    "query": "What is the total net revenue in USD across all NA stores for 2025-06-14?",
+    "expected": "$1,965,043.30 (640220.10 + 325044.80 + 862924.40 + 136854.00)",
+    "tablerag_answer": "The total net revenue across all NA stores for 2025-06-14 is 1,965,043.30 USD.",
+    "route": "hybrid",
+    "sql": "SELECT SUM(net_rev_usd) FROM north_america WHERE wk_end = '2025-06-14'",
+    "sql_result": "[{'sum(net_rev_usd)': 1965043.2999999998}]",
+    "retrieved_sections": [
+      "text:Q1 2025 ARCHIVE SUMMARY (compressed; same stores, different ",
+      "table:EUROPE \u2014 weekly store rollup (DIFFERENT COLUMN ORDER than NA",
+      "table:NORTH AMERICA \u2014 weekly store rollup (pasted from Excel, cols"
+    ]
+  },
+  {
+    "query": "How many support tickets mention firmware v3.2.1 and requested a refund?",
+    "expected": "0 from listed tickets (44821 mentions v3.2.1, refund=no). Cluster note says 37 mention v3.2.1 but refund status not given for all.",
+    "tablerag_answer": "I don't know. The provided context states that 37 tickets mention firmware v3.2.1 and that ticket #44821 mentions it without a refund, but there is no aggregate data confirming how many of the 37 tickets specifically requested a refund.",
+    "route": "lookup",
+    "sql": null,
+    "sql_result": null,
+    "retrieved_sections": [
+      "text:CUSTOMER SUPPORT \u2014 Zendesk theme extract (free text + embedd",
+      "text:CUSTOMER SUPPORT \u2014 Zendesk theme extract (free text + embedd",
+      "text:MEMO \u2014 Operations (author: J. Patel, 2025-06-12)"
+    ]
+  },
+  {
+    "query": "What is the attributable incremental revenue from campaign SummerGlow?",
+    "expected": "$42,000 per BI last-touch for week ending 6/14; brand team claims $68,000 blended. Not in store rollups.",
+    "tablerag_answer": "The attributable incremental revenue for campaign \"SummerGlow\" is $42,000 (according to the BI team's last-touch methodology) or $68,000 (according to the brand team's blended model). Per the provided instructions, both figures are noted to be informal and do not appear in the authoritative store rollup exports.",
+    "route": "lookup",
+    "sql": null,
+    "sql_result": null,
+    "retrieved_sections": [
+      "text:MARKETING ATTRIBUTION \u2014 narrative only (no table)",
+      "text:MEMO \u2014 Operations (author: J. Patel, 2025-06-12)",
+      "text:RANDOM EMAIL THREAD EXCERPT (contains numbers that look like"
+    ]
+  },
+  {
+    "query": "What is the average basket size in NA?",
+    "expected": "Weighted from store rollups for 2025-06-14: ~$156.60 simple avg of avg_basket (159.62, 142.07, 173.00, 151.72). Ignore email ~$160 (non-authoritative).",
+    "tablerag_answer": "The average basket size in NA is $156.50.",
+    "route": "hybrid",
+    "sql": "SELECT avg(avg_basket) FROM north_america",
+    "sql_result": "[{'avg(avg_basket)': 156.50250000000003}]",
+    "retrieved_sections": [
+      "text:RANDOM EMAIL THREAD EXCERPT (contains numbers that look like",
+      "text:MARKETING ATTRIBUTION \u2014 narrative only (no table)",
+      "text:MEMO \u2014 Operations (author: J. Patel, 2025-06-12)"
+    ]
+  },
+  {
+    "query": "Which product variants are below the reorder threshold?",
+    "expected": "Per reconciliation: CH-902 family (CH-902 + CH-902-L) below combined OH threshold of 100. Also LP-35-B oh=18 individually low.",
+    "tablerag_answer": "The CH-902 family is below the reorder threshold of 100 combined units on hand.",
+    "route": "lookup",
+    "sql": null,
+    "sql_result": null,
+    "retrieved_sections": [
+      "text:INVENTORY RECONCILIATION NOTES \u2014 2025-06-27",
+      "text:MEMO \u2014 Operations (author: J. Patel, 2025-06-12)",
+      "text:RANDOM EMAIL THREAD EXCERPT (contains numbers that look like"
+    ]
+  },
+  {
+    "query": "What is the APAC refund count for SG-05 on 2025-06-07?",
+    "expected": "Unknown \u2014 export truncated; SG-05 refunds field is empty/missing",
+    "tablerag_answer": "The APAC refund count for SG-05 on 2025-06-07 is not available (the value is null).",
+    "route": "hybrid",
+    "sql": "SELECT refunds FROM apac WHERE store = 'SG-05' AND week = '2025-06-07'",
+    "sql_result": "[{'refunds': None}]",
+    "retrieved_sections": [
+      "table:APAC \u2014 partial dump (export FAILED row 84; file truncated)",
+      "text:MEMO \u2014 Operations (author: J. Patel, 2025-06-12)",
+      "table:EUROPE \u2014 weekly store rollup (DIFFERENT COLUMN ORDER than NA"
+    ]
+  }
+]
