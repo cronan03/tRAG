@@ -1,0 +1,158 @@
+ACME RETAIL GROUP — INTERNAL DATA VAULT EXPORT
+Generated: 2025-06-28 03:14 UTC | Source systems: SAP-legacy, Shopify, Zendesk, manual XLS
+NOTE TO READER: This bundle is NOT normalized. Schemas vary by region and export job.
+
+================================================================================
+MEMO — Operations (author: J. Patel, 2025-06-12)
+================================================================================
+Revenue looked soft in APAC but NA held up. Do not use the March "flash" sheet for
+board slides — finance re-stated EU numbers on 6/20. The sku 8841-RX (wireless buds)
+is the same as catalog id WB-8841 in the old lookup; ops still calls it "RX8841".
+Returns spiked after firmware v3.2.1; see ticket cluster below.
+
+================================================================================
+NORTH AMERICA — weekly store rollup (pasted from Excel, cols as exported)
+================================================================================
+store_id	region	wk_end	units_rev	net_rev_usd	refund_cnt	avg_basket
+S0142	NA-EAST	2025-06-07	3842	612940.55	118	159.80
+S0142	NA-EAST	2025-06-14	4011	640220.10	97	159.62
+S0178	NA-EAST	2025-06-07	2104	298110.00	64	141.69
+S0178	NA-EAST	2025-06-14	2288	325044.80	71	142.07
+S0201	NA-WEST	2025-06-07	5120	891520.00	201	174.12
+S0201	NA-WEST	2025-06-14	4988	862924.40	189	173.00
+S0333	NA-WEST	2025-06-07	890	133500.00	22	150.00
+S0333	NA-WEST	2025-06-14	902	136854.00	19	151.72
+
+Comment from field ops: S0333 closed Mon-Tue for HVAC; ignore week-over-week noise.
+
+================================================================================
+EUROPE — weekly store rollup (DIFFERENT COLUMN ORDER than NA export)
+================================================================================
+wk_end | net_rev_eur | store | refunds | units | region
+2025-06-07 | 412880.30 | FR-901 | 88 | 2644 | EU
+2025-06-14 | 428110.00 | FR-901 | 79 | 2750 | EU
+2025-06-07 | 388220.15 | DE-442 | 102 | 2410 | EU
+2025-06-14 | 401002.40 | DE-442 | 94 | 2498 | EU
+2025-06-07 | 201110.00 | UK-118 | 41 | 1198 | EU
+2025-06-14 | 210445.50 | UK-118 | 38 | 1244 | EU
+
+Finance restatement 6/20: DE-442 net_rev_eur for 2025-06-07 was corrected from
+388220.15 to 391005.15 (VAT classification). Spreadsheets in SharePoint may still
+show the old value.
+
+================================================================================
+APAC — partial dump (export FAILED row 84; file truncated)
+================================================================================
+store,week,rev_usd,units,refunds
+JP-77,2025-06-07,188420.00,1422,31
+JP-77,2025-06-14,192880.50,1458,28
+AU-12,2025-06-07,96440.00,712,19
+AU-12,2025-06-14,98810.25,728,17
+SG-05,2025-06-07,55220.00,418,
+
+================================================================================
+PRODUCT MOVEMENT — warehouse bay snapshot (no primary key; scan timestamp 2025-06-27T18:02)
+================================================================================
+| loc | sku | description | oh | reserved | avail | last_recv |
+| A1-04 | WB-8841 | wireless buds black | 4200 | 890 | 3310 | 2025-06-22 |
+| A1-04 | WB-8841-W | wireless buds white | 1100 | 220 | 880 | 2025-06-19 |
+| B2-11 | CH-902 | office chair mesh | 85 | 12 | 73 | 2025-06-10 |
+| B2-11 | CH-902-L | office chair mesh tall | 40 | 8 | 32 | 2025-06-10 |
+| C0-00 | USB-H3 | usb-c hub 7port | 320 | 45 | 275 | 2025-06-25 |
+| D7-02 | LP-35 | desk lamp led | 200 | 0 | 200 | 2025-06-01 |
+| D7-02 | LP-35-B | desk lamp blue | 18 | 0 | 18 | 2025-05-28 |
+
+RX8841 appears twice in WMS under alias table (not exported here). Treat WB-8841 as canonical.
+
+================================================================================
+SHOPIFY ORDERS — last 48h sample (JSONL extract, flattened)
+================================================================================
+order_id=8829101 ts=2025-06-27T09:14:22Z cust=janedoe@email.com sku=WB-8841 qty=2 line_amt=59.98 ship=NA-EAST
+order_id=8829102 ts=2025-06-27T09:31:05Z cust=johnroe@corp.com sku=CH-902 qty=1 line_amt=249.00 ship=NA-EAST
+order_id=8829155 ts=2025-06-27T11:02:44Z cust=janedoe@email.com sku=USB-H3 qty=1 line_amt=45.50 ship=NA-EAST
+order_id=8829200 ts=2025-06-27T14:55:10Z cust=acmecorp@biz.com sku=WB-8841 qty=50 line_amt=1499.50 ship=NA-WEST
+order_id=8829301 ts=2025-06-27T22:18:33Z cust=maria.s@email.es sku=LP-35 qty=3 line_amt=105.00 ship=EU
+
+Bulk flag logic (undocumented in schema): qty>=50 triggers discount; line_amt may not equal qty*unit.
+
+================================================================================
+CUSTOMER SUPPORT — Zendesk theme extract (free text + embedded tallies)
+================================================================================
+Ticket #44821 (2025-06-18): "WB-8841 disconnecting after update"
+  agent: R. Chen | status: solved | category: firmware
+  linked skus: 8841-RX, WB-8841 | mentions v3.2.1 | refund issued: no
+
+Ticket #44888 (2025-06-19): "Chair arm broken CH902"
+  agent: M. Lopez | status: pending | category: damage
+  replacement sku: CH-902 | refund issued: yes | amount: 249.00
+
+Ticket #44902 (2025-06-20): "Hub overheating USB-H3"
+  agent: R. Chen | status: open | category: safety
+  refund issued: no | escalation: tier-2
+
+Ticket cluster note: 37 tickets mention v3.2.1 between 6/15-6/22; not all map to WB-8841.
+
+================================================================================
+HR & PAYROLL SNAPSHOT — confidential (unrelated system; included by mistake in zip)
+================================================================================
+emp_id|name|dept|hire|base_usd
+E1001|Alice Johnson|ENG|2021-03-15|95000
+E1002|Bob Smith|SALES|2019-07-01|72000
+E1003|Carol Lee|HR|2020-11-20|68000
+E1004|David Kim|ENG|2022-01-10|102000
+E1011|Elena Rossi|SALES|2023-04-02|71000
+
+Do not mix with store revenue tables — different grain (employee vs store-week).
+
+================================================================================
+MARKETING ATTRIBUTION — narrative only (no table)
+================================================================================
+Campaign "SummerGlow" drove uplift in NA-WEST for LP-35 and LP-35-B combined, but
+the BI team says attributable incremental revenue is $42k for the week ending 6/14
+(methodology: last-touch). Brand team claims $68k using blended model. Neither
+figure appears in the store rollup exports above.
+
+================================================================================
+LEGACY SKU CROSSWALK (incomplete)
+================================================================================
+old_code -> new_code | notes
+8841-RX -> WB-8841 | color suffix ignored in some reports
+CHAIR-902 -> CH-902 | rename 2024-11
+HUB7 -> USB-H3 | pack size change
+LAMP35 -> LP-35 | |
+
+================================================================================
+INVENTORY RECONCILIATION NOTES — 2025-06-27
+================================================================================
+Bay C0-00: cycle count 318 vs system 320 for USB-H3; adjustment pending.
+Bay A1-04: WB-8841 avail mismatch — WMS 3310 vs Shopify sellable 3295 (reserved delta).
+CH-902 family below reorder threshold of 100 combined OH across variants (per supply
+planning policy doc §4.2 — policy text not included in this export).
+
+================================================================================
+RANDOM EMAIL THREAD EXCERPT (contains numbers that look like answers)
+================================================================================
+From: cfo@acme.com
+"... average basket in NA is about $160 give or take, don't quote me..."
+From: analyst@acme.com
+"... EU refunds rate last week was ~3.5% if you trust the flash file..."
+These emails are NOT authoritative; use system exports when possible.
+
+================================================================================
+Q1 2025 ARCHIVE SUMMARY (compressed; same stores, different metric names)
+================================================================================
+NA store S0201 Q1 total net sales USD: 10,842,110.00 (13 weeks aggregated).
+NA store S0201 Q2 Wk1 net_rev_usd: 891520.00 — DO NOT compare directly (gross vs net).
+
+================================================================================
+DEFINITIONS (scattered; no single schema section)
+================================================================================
+"net_rev_usd" = net of returns, pre-tax, store channel only.
+"net_rev_eur" = same definition but FX at daily ECB rate (not documented here).
+"units" may mean items scanned or items sold depending on export job ID.
+"refunds" vs "refund_cnt" vs "refunds" column in APAC — verify before aggregating.
+"oh" = on hand, "avail" = oh minus reserved.
+
+================================================================================
+END OF EXPORT — checksum: 9f2a1c | rows approximate | not for regulatory filing
+================================================================================

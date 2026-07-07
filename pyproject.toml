@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trag"
+version = "0.1.0"
+description = "Simple RAG for table documentation using Gemini"
+requires-python = ">=3.9"
+dependencies = [
+  "google-genai>=1.0.0",
+  "python-dotenv>=1.0.0",
+  "langchain-core>=1.0.0",
+  "langchain-community>=0.4.0",
+  "langchain-google-genai>=4.0.0",
+  "scikit-learn>=1.5.0",
+]
+
+[project.scripts]
+trag = "cli:main"
+trag-lc = "rag_lc:main_cli"
+
+[tool.setuptools]
+py-modules = ["cli", "rag", "rag_lc", "main"]

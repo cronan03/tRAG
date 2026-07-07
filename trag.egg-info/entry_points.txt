@@ -1,0 +1,3 @@
+[console_scripts]
+trag = cli:main
+trag-lc = rag_lc:main_cli

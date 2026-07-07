@@ -1,0 +1,34 @@
+# Stress-test queries for data/document2.txt
+# Run: trag -c data/document2.txt --log-level INFO "<query>"
+#
+# Expected failure modes with current TF-IDF + paragraph chunking:
+# - Cross-region aggregation (different column names/order)
+# - Corrected EU value vs stale spreadsheet mention
+# - SKU alias resolution (8841-RX vs WB-8841 vs RX8841)
+# - Truncated APAC row (SG-05 refunds missing)
+# - Joining warehouse avail with Shopify sellable across chunks
+# - Ignoring misleading email narrative numbers
+# - Q1 vs Q2 metric incompatibility
+# - Marketing attribution not in tabular exports
+# - Ticket cluster count (37) vs individual ticket lines
+# - CH-902 reorder policy requiring external doc §4.2
+
+What is the corrected net_rev_eur for DE-442 on 2025-06-07?
+
+What is the average stock_quantity for products in the warehouse?
+
+How many units of WB-8841 are available to sell according to Shopify vs WMS?
+
+What is the refund rate for NA-WEST stores for the week ending 2025-06-14?
+
+What is the total net revenue in USD across all NA stores for 2025-06-14?
+
+How many support tickets mention firmware v3.2.1 and requested a refund?
+
+What is the attributable incremental revenue from campaign SummerGlow?
+
+What is the average basket size in NA?
+
+Which product variants are below the reorder threshold?
+
+What is the APAC refund count for SG-05 on 2025-06-07?

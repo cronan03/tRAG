@@ -1,0 +1,86 @@
+# Company Database — Table Documentation
+
+## Table: employees
+Description: Stores employee records for the organization.
+Columns:
+  - employee_id (INTEGER, PRIMARY KEY): Unique identifier for each employee.
+  - full_name (TEXT): Employee's full name.
+  - department (TEXT): Department name (Engineering, Sales, HR, Finance).
+  - hire_date (DATE): Date the employee was hired.
+  - salary (DECIMAL): Annual salary in USD.
+
+Sample rows:
+  | employee_id | full_name      | department  | hire_date  | salary  |
+  |-------------|----------------|-------------|------------|---------|
+  | 1           | Alice Johnson  | Engineering | 2021-03-15 | 95000   |
+  | 2           | Bob Smith      | Sales       | 2019-07-01 | 72000   |
+  | 3           | Carol Lee      | HR          | 2020-11-20 | 68000   |
+  | 4           | David Kim      | Engineering | 2022-01-10 | 102000  |
+
+---
+
+## Table: products
+Description: Product catalog for the e-commerce platform.
+Columns:
+  - product_id (INTEGER, PRIMARY KEY): Unique product identifier.
+  - product_name (TEXT): Display name of the product.
+  - category (TEXT): Product category (Electronics, Furniture, Accessories).
+  - unit_price (DECIMAL): Price per unit in USD.
+  - stock_quantity (INTEGER): Units available in warehouse.
+
+Sample rows:
+  | product_id | product_name    | category    | unit_price | stock_quantity |
+  |------------|-----------------|-------------|------------|----------------|
+  | 101        | Wireless Mouse  | Electronics | 29.99      | 450            |
+  | 102        | Office Chair    | Furniture   | 249.00     | 85             |
+  | 103        | USB-C Hub       | Electronics | 45.50      | 320            |
+  | 104        | Desk Lamp       | Accessories | 35.00      | 200            |
+
+---
+
+## Table: orders
+Description: Customer purchase orders linking products to sales totals.
+Columns:
+  - order_id (INTEGER, PRIMARY KEY): Unique order identifier.
+  - customer_name (TEXT): Name of the customer who placed the order.
+  - product_id (INTEGER, FOREIGN KEY -> products.product_id): Product purchased.
+  - quantity (INTEGER): Number of units ordered.
+  - order_date (DATE): Date the order was placed.
+  - total_amount (DECIMAL): Total price (quantity * unit_price at time of order).
+
+Sample rows:
+  | order_id | customer_name | product_id | quantity | order_date | total_amount |
+  |----------|---------------|------------|----------|------------|--------------|
+  | 5001     | Jane Doe      | 101        | 2        | 2025-06-01 | 59.98        |
+  | 5002     | John Roe      | 102        | 1        | 2025-06-03 | 249.00       |
+  | 5003     | Jane Doe      | 103        | 1        | 2025-06-10 | 45.50        |
+  | 5004     | Acme Corp     | 101        | 50       | 2025-06-15 | 1499.50      |
+
+---
+
+## Table: department_budgets
+Description: Annual budget allocation per department.
+Columns:
+  - department (TEXT, PRIMARY KEY): Department name.
+  - fiscal_year (INTEGER): Budget year.
+  - allocated_budget (DECIMAL): Total budget in USD.
+  - spent_to_date (DECIMAL): Amount spent so far in USD.
+
+Sample rows:
+  | department  | fiscal_year | allocated_budget | spent_to_date |
+  |-------------|-------------|------------------|---------------|
+  | Engineering | 2025        | 1200000          | 780000        |
+  | Sales       | 2025        | 450000           | 310000        |
+  | HR          | 2025        | 200000           | 145000        |
+  | Finance     | 2025        | 180000           | 92000         |
+
+---
+
+## Relationships
+- orders.product_id references products.product_id
+- employees.department can be joined with department_budgets.department for budget vs. payroll analysis
+
+## Business rules
+- Engineering has the highest average salary among departments.
+- Bulk orders (quantity >= 50) receive an implicit 10% discount reflected in total_amount.
+- Products with stock_quantity below 100 are considered low stock and should be reordered.

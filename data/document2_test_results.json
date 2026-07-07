@@ -1,0 +1,82 @@
+[
+  {
+    "query": "What is the corrected net_rev_eur for DE-442 on 2025-06-07?",
+    "expected": "391005.15 EUR (finance restatement 6/20; was 388220.15)",
+    "vanilla_answer": "The corrected net_rev_eur for DE-442 on 2025-06-07 is 391005.15.",
+    "lc_answer": "The corrected net_rev_eur for DE-442 on 2025-06-07 is 391005.15.",
+    "vanilla_top_chunk": "Finance restatement 6/20: DE-442 net_rev_eur for 2025-06-07 was corrected from",
+    "lc_top_chunk": "Finance restatement 6/20: DE-442 net_rev_eur for 2025-06-07 was corrected from"
+  },
+  {
+    "query": "What is the average stock_quantity for products in the warehouse?",
+    "expected": "No stock_quantity column in warehouse snapshot; if using on-hand (oh): 851.86 avg across 7 SKUs; if avail: 685.43. Question uses wrong field name.",
+    "vanilla_answer": "I don't know. The provided context does not contain information regarding stock quantities for products in the warehouse.",
+    "lc_answer": "I don't know. The provided context does not contain information regarding the stock quantity of products in the warehouse.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "How many units of WB-8841 are available to sell according to Shopify vs WMS?",
+    "expected": "WMS avail: 3310; Shopify sellable: 3295 (reconciliation notes 2025-06-27)",
+    "vanilla_answer": "According to the notes, there are 3,295 units available to sell on Shopify and 3,310 units in the WMS.",
+    "lc_answer": "According to the inventory reconciliation notes, there are 3295 units available to sell according to Shopify and 3310 units according to WMS.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "Ticket cluster note: 37 tickets mention v3.2.1 between 6/15-6/22; not all map to"
+  },
+  {
+    "query": "What is the refund rate for NA-WEST stores for the week ending 2025-06-14?",
+    "expected": "208 refund_cnt / 5890 units_rev \u2248 3.53% (S0201: 189/4988 + S0333: 19/902 combined)",
+    "vanilla_answer": "To calculate the refund rate for NA-WEST stores for the week ending 2025-06-14, we first identify the relevant data for that week:\n\n*   **S0201 (NA-WEST):** 4,988 units sold, 189 refunds\n*   **S0333 (NA-WEST):** 902 units sold, 19 refunds\n\n**Total units sold:** 4,988 + 902 = 5,890\n**Total refunds:** 189 + 19 = 208\n\n**Refund rate:** 208 / 5,890 \u2248 0.0353 or **3.53%**",
+    "lc_answer": "To calculate the refund rate for NA-WEST stores for the week ending 2025-06-14, we first identify the relevant stores (S0201 and S0333) and their data for that week:\n\n*   **S0201:** 4,988 units sold, 189 refunds\n*   **S0333:** 902 units sold, 19 refunds\n\n**Total units sold:** 4,988 + 902 = 5,890\n**Total refunds:** 189 + 19 = 208\n\n**Refund rate:** 208 / 5,890 \u2248 0.0353, or approximately **3.53%**.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "What is the total net revenue in USD across all NA stores for 2025-06-14?",
+    "expected": "$1,965,043.30 (640220.10 + 325044.80 + 862924.40 + 136854.00)",
+    "vanilla_answer": "Answer: I don't know. The provided context does not contain a total net revenue figure for all NA stores for the date 2025-06-14.",
+    "lc_answer": "I don't know. The provided context does not contain total net revenue for all NA stores for 2025-06-14; it only provides a Q1 total for store S0201 and a marketing attribution estimate for a specific campaign.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "How many support tickets mention firmware v3.2.1 and requested a refund?",
+    "expected": "0 from listed tickets (44821 mentions v3.2.1, refund=no). Cluster note says 37 mention v3.2.1 but refund status not given for all.",
+    "vanilla_answer": "Answer: Based on the provided context, I don't know. The text indicates that 37 tickets mention v3.2.1 and one specific ticket (#44821) mentions it without a refund, but there is no information provided regarding the refund status of the other tickets in the cluster.",
+    "lc_answer": "Based on the provided context, I don't know. While the text mentions that 37 tickets mention v3.2.1 and provides details for Ticket #44821 (which mentions v3.2.1 but did not receive a refund), there is no information regarding how many of the other tickets in the cluster requested a refund.",
+    "vanilla_top_chunk": "Ticket cluster note: 37 tickets mention v3.2.1 between 6/15-6/22; not all map to",
+    "lc_top_chunk": "Ticket cluster note: 37 tickets mention v3.2.1 between 6/15-6/22; not all map to"
+  },
+  {
+    "query": "What is the attributable incremental revenue from campaign SummerGlow?",
+    "expected": "$42,000 per BI last-touch for week ending 6/14; brand team claims $68,000 blended. Not in store rollups.",
+    "vanilla_answer": "The attributable incremental revenue for campaign \"SummerGlow\" is $42k according to the BI team (using last-touch methodology) and $68k according to the brand team (using a blended model).",
+    "lc_answer": "The attributable incremental revenue for the \"SummerGlow\" campaign is $42k according to the BI team (using a last-touch methodology) and $68k according to the brand team (using a blended model).",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "What is the average basket size in NA?",
+    "expected": "Weighted from store rollups for 2025-06-14: ~$156.60 simple avg of avg_basket (159.62, 142.07, 173.00, 151.72). Ignore email ~$160 (non-authoritative).",
+    "vanilla_answer": "The average basket size in NA is about $160.",
+    "lc_answer": "According to the provided email excerpt, the average basket in NA is about $160. Please note that the context specifies this information is not authoritative and should not be quoted.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "Which product variants are below the reorder threshold?",
+    "expected": "Per reconciliation: CH-902 family (CH-902 + CH-902-L) below combined OH threshold of 100. Also LP-35-B oh=18 individually low.",
+    "vanilla_answer": "The CH-902 family of product variants is below the reorder threshold.",
+    "lc_answer": "The CH-902 family of variants is below the reorder threshold.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  },
+  {
+    "query": "What is the APAC refund count for SG-05 on 2025-06-07?",
+    "expected": "Unknown \u2014 export truncated; SG-05 refunds field is empty/missing",
+    "vanilla_answer": "The provided context does not list a refund count for SG-05 on 2025-06-07; the field is blank. I don't know.",
+    "lc_answer": "The provided context does not contain a value for the refund count for store SG-05 on 2025-06-07; the field is left blank in the table.",
+    "vanilla_top_chunk": "================================================================================",
+    "lc_top_chunk": "================================================================================"
+  }
+]
