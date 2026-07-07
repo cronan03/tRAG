@@ -14,11 +14,23 @@ dependencies = [
   "langchain-community>=0.4.0",
   "langchain-google-genai>=4.0.0",
   "scikit-learn>=1.5.0",
+  "duckdb>=1.0.0",
 ]
+
+[project.optional-dependencies]
+langchain = ["langchain-core>=1.0.0"]
+evals = ["datasets>=2.14.0"]
 
 [project.scripts]
 trag = "cli:main"
 trag-lc = "rag_lc:main_cli"
+trag-tab = "tablerag.cli:main"
 
 [tool.setuptools]
 py-modules = ["cli", "rag", "rag_lc", "main"]
+
+[tool.setuptools.packages.find]
+include = ["tablerag*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
