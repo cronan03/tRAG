@@ -19,7 +19,7 @@ from tablerag.index.docstore import DocStore
 from tablerag.index.embedder import Embedder
 from tablerag.index.lexical import LexicalScorer
 from tablerag.models import Block, RetrievedBlock
-from tablerag.summarize import summarize_block
+from tablerag.summarize import Summarizer, summarize_block
 
 logger = logging.getLogger("tablerag")
 
@@ -37,6 +37,7 @@ class DualVectorIndex:
     lexical_weight: float = 0.5,
     backend: VectorBackend | None = None,
     similarity: str = "cosine",
+    summarizer: Summarizer | None = None,
   ) -> None:
     """
     Args:
@@ -47,12 +48,17 @@ class DualVectorIndex:
       backend: custom VectorBackend (e.g. LangChainVectorStoreBackend).
         Defaults to InMemoryBackend(embedder, similarity).
       similarity: "cosine" | "dot" | "euclidean" (in-memory backend only).
+      summarizer: callable `(Block) -> str` that builds the searchable
+        summary embedded for retrieval. Defaults to summarize_block
+        (deterministic schema + values). Pass LLMSummarizer or a custom
+        function for narrative / domain-specific summaries.
     """
     if backend is None:
       backend = InMemoryBackend(embedder, similarity=similarity)
     self.backend = backend
     self.embedder = embedder
     self.lexical_weight = lexical_weight
+    self.summarizer = summarizer or summarize_block
     self.docstore = DocStore()
     self.lexical = LexicalScorer()
     self._lexical_index: dict[str, int] = {}  # doc_id -> LexicalScorer index
@@ -61,7 +67,7 @@ class DualVectorIndex:
   def add_blocks(self, blocks: list[Block]) -> None:
     if not blocks:
       return
-    summaries = [summarize_block(b) for b in blocks]
+    summaries = [self.summarizer(b) for b in blocks]
     ids = [b.doc_id for b in blocks]
 
     for block, summary in zip(blocks, summaries):

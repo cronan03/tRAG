@@ -82,8 +82,8 @@ flowchart TB
 
     chunked --> indexBlocks["pipeline.index_blocks(blocks, sandbox_tables=originals)"]
     indexBlocks --> addBlocks["DualVectorIndex.add_blocks()"]
-    addBlocks --> summarize["summarize.summarize_block()"]
-    summarize -->|"schema + distinct values + notes"| summaries["deterministic summaries"]
+    addBlocks --> summarize["summarizer(block) - default summarize_block"]
+    summarize -->|"schema + values / LLM / custom"| summaries["searchable summaries"]
     summaries --> backendAdd["VectorBackend.add(ids, summaries)"]
     backendAdd --> embed["Embedder.embed(summaries) - one batched call"]
     addBlocks --> putDoc["DocStore.put(block) - raw payload"]
@@ -169,14 +169,22 @@ affects the retrieval copy — aggregations never see a fragment.
 
 ### 3. Summarization — `tablerag/summarize.py`
 
-**Strategy: deterministic, zero LLM calls.** Instead of paying an LLM to
-summarize each table (the textbook multi-vector approach), the summary is
-built mechanically: section title + column names + up to 24 distinct values
-per column + `context_notes`. This captures exactly what table queries mention
-(column names, SKUs, dates, store IDs), is fully reproducible, and costs
-nothing. Text blocks summarize as themselves (truncated at 1,200 chars for the
-embedding only — the stored payload is never truncated). An LLM summary mode
-can be layered on later if a corpus needs it.
+**Strategy: pluggable summarizer, deterministic by default.** What gets
+*embedded* for search is a summary; the raw block stays in the DocStore.
+Anything satisfying `(Block) -> str` works:
+
+- `DeterministicSummarizer` (default via `summarize_block`) — section title +
+  column names + up to `max_distinct_values` (default 24) distinct values per
+  column + `context_notes`. Text truncated at `max_text_chars` (default 1200)
+  for the embedding only. Zero LLM cost, fully reproducible, strong for
+  identifier-heavy table queries.
+- `LLMSummarizer(generator, prompt_template=None)` — classic dual-vector
+  narrative summary (1 LLM call per block at ingest). Optional custom
+  `{block}` prompt template.
+- Any custom callable — e.g. domain-specific one-liners.
+
+`DualVectorIndex` / `TableRAGPipeline` / `TableRetrieverManager` all take
+`summarizer=`. Default stays free; LLM mode is opt-in.
 
 ### 4. Indexing — `tablerag/index/`
 
@@ -223,14 +231,22 @@ revenue USD" matches), and prefix matching bridges abbreviation drift
 
 ### 6. Routing — `tablerag/route/`
 
-**Strategy: deterministic regex, no LLM, no latency.** `classify_query()`
-labels a question `compute` if it matches aggregation intent patterns
-(`total`, `average`, `rate`, `how many`, `highest`, `below`, `across all`, ~30
-patterns), else `lookup`. Compute is attempted only when the sandbox has
-tables; a failed SQL attempt degrades gracefully to lookup. The wager: a cheap
-router that is right most of the time beats an agentic loop that is expensive
-always — and a wrong `compute` label costs only one extra LLM call before
-falling back.
+**Strategy: deterministic regex by default, fully pluggable.**
+`classify_query()` / `RegexClassifier` labels a question `compute` if it
+matches aggregation intent patterns (`total`, `average`, `rate`, `how many`,
+`highest`, `below`, `across all`, ~30 English patterns), else `lookup`.
+Users can:
+- add/remove patterns via `extra_compute_patterns` /
+  `disable_compute_patterns` on the pipeline,
+- replace the router with any `classifier=` callable
+  (`(str) -> "compute"|"lookup"`),
+- force a route per call with `query(..., route="compute"|"lookup")`.
+
+Precedence: per-query `route=` > `classifier=` > pattern knobs > default.
+Compute is attempted only when the sandbox has tables; a failed SQL attempt
+degrades gracefully to lookup. The wager: a cheap router that is right most
+of the time beats an agentic loop that is expensive always — and a wrong
+`compute` label costs only one extra LLM call before falling back.
 
 ### 7. Compute sandbox — `tablerag/compute/`
 
@@ -327,9 +343,11 @@ the right stage (fetch vs reason).
 
 ## Design principles
 
-1. **Deterministic wherever possible.** Parsing, chunking, summarization,
-   routing, and math are all LLM-free. LLM calls happen in exactly two
-   places: writing one SQL statement, and phrasing the final answer.
+1. **Deterministic by default; LLM only where opted in.** Parsing, chunking,
+   routing, and math are LLM-free. Summarization defaults to deterministic
+   (`summarize_block`) but accepts `LLMSummarizer` or a custom callable.
+   Remaining LLM calls: optional ingest summaries, writing one SQL statement,
+   and phrasing the final answer.
 2. **The payload is sacred.** Raw tables are never embedded, truncated, or
    fragmented on the answer path; vectors and summaries are only pointers.
 3. **Complete tables for math.** Chunking applies to the retrieval copy only;

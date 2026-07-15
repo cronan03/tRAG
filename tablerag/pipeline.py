@@ -15,7 +15,8 @@ from tablerag.index.dual_vector import DualVectorIndex
 from tablerag.index.embedder import Embedder
 from tablerag.models import Block, QueryResult, TableBlock, TextBlock
 from tablerag.parse import parse_document
-from tablerag.route import classify_query
+from tablerag.route import RegexClassifier, classify_query
+from tablerag.summarize import Summarizer
 
 logger = logging.getLogger("tablerag")
 
@@ -92,6 +93,10 @@ class TableRAGPipeline:
     sql_examples: list[tuple[str, str]] | None = None,
     sql_prompt_template: str | None = None,
     sql_max_retries: int = 1,
+    summarizer: Summarizer | None = None,
+    classifier=None,
+    extra_compute_patterns: list[str] | None = None,
+    disable_compute_patterns: list[str] | None = None,
   ) -> None:
     """
     tablerag is model-agnostic: bring your own generator and embedder.
@@ -137,6 +142,18 @@ class TableRAGPipeline:
         NO_SQL" contract when overriding.
       sql_max_retries: corrected attempts after a failed SQL execution
         (error fed back to the LLM). Default 1; 0 disables retrying.
+      summarizer: callable `(Block) -> str` that builds the searchable
+        summary embedded for retrieval. Defaults to summarize_block
+        (deterministic). Pass LLMSummarizer(generator) for narrative
+        summaries, DeterministicSummarizer(max_distinct_values=...) to
+        tune caps, or any custom function.
+      classifier: callable `(question: str) -> "compute"|"lookup"`. When
+        set, replaces the default regex router entirely. Wins over
+        extra_compute_patterns / disable_compute_patterns.
+      extra_compute_patterns: regexes added to the default English
+        aggregation list (ignored if classifier= is set).
+      disable_compute_patterns: exact default-list entries to remove
+        (ignored if classifier= is set).
     """
     if vectorstore is not None and vector_backend is None:
       vector_backend = LangChainVectorStoreBackend(vectorstore)
@@ -147,6 +164,7 @@ class TableRAGPipeline:
       lexical_weight=lexical_weight,
       backend=vector_backend,
       similarity=similarity,
+      summarizer=summarizer,
     )
     self.model = getattr(generator, "model", "") if generator else ""
     self.max_table_rows = max_table_rows
@@ -162,6 +180,16 @@ class TableRAGPipeline:
     self.sql_examples = sql_examples
     self.sql_prompt_template = sql_prompt_template
     self.sql_max_retries = sql_max_retries
+    self.summarizer = summarizer
+    if classifier is not None:
+      self.classifier = classifier
+    elif extra_compute_patterns or disable_compute_patterns:
+      self.classifier = RegexClassifier(
+        extra_patterns=extra_compute_patterns,
+        disable_patterns=disable_compute_patterns,
+      )
+    else:
+      self.classifier = classify_query
     self._generator: Generator | None = generator
     self._sql_agent: SQLAgent | None = None
 
@@ -327,13 +355,27 @@ class TableRAGPipeline:
     question: str,
     top_k: int = 3,
     system_prompt: str | None = None,
+    route: str | None = None,
   ) -> QueryResult:
     logger.info("=" * 60)
     logger.info("tablerag query: %r", question)
 
-    route = "lookup"
-    if self.sandbox is not None and len(self.sandbox) > 0:
-      route = classify_query(question)
+    if route is not None and route not in ("compute", "lookup"):
+      raise ValueError(
+        f"route must be 'compute', 'lookup', or None (auto); got {route!r}"
+      )
+
+    if route is None:
+      route = "lookup"
+      if self.sandbox is not None and len(self.sandbox) > 0:
+        route = self.classifier(question)
+    elif route == "compute" and (
+      self.sandbox is None or len(self.sandbox) == 0
+    ):
+      logger.warning(
+        "route='compute' requested but sandbox has no tables; using lookup"
+      )
+      route = "lookup"
     logger.info("[1/4] Route: %s", route)
 
     logger.info("[2/4] Retrieving top-%d blocks (dual-vector)", top_k)

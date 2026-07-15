@@ -14,6 +14,11 @@ from tablerag.providers import (
   langchain_embedder,
   langchain_generator,
 )
+from tablerag.summarize import (
+  DeterministicSummarizer,
+  LLMSummarizer,
+  summarize_block,
+)
 
 __all__ = [
   "TableBlock",
@@ -24,6 +29,9 @@ __all__ = [
   "gemini_embedder",
   "langchain_generator",
   "langchain_embedder",
+  "DeterministicSummarizer",
+  "LLMSummarizer",
+  "summarize_block",
 ]
 
 __version__ = "0.1.0"

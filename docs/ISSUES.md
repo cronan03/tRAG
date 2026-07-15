@@ -19,18 +19,15 @@ Detailed design for the prompt items (T1-1, T1-4) lives in
 - Problem: no way to inject domain SQL rules (fiscal calendars, unit conventions, business definitions); retry count frozen at 1.
 - Fix (shipped): `sql_instructions` (appended; base safety contract intact), `sql_examples` (few-shot pairs), `sql_prompt_template` (full override with `{schema}`/`{question}`/`{instructions}` slots), `sql_max_retries` (default 1, 0 disables). Wired through the pipeline's `sql_agent` property. Tests in `tests/test_prompts.py`; docs in SDK.md "Customizing the SQL agent".
 
-### [ ] T1-2: Query router is English-only regex with no override
-- Location: [tablerag/route/classifier.py](tablerag/route/classifier.py) lines 12-43 (`_AGGREGATION_PATTERNS`); `pipeline.query()` has no manual route override.
+### [x] T1-2: Query router is English-only regex with no override
+- Location: [tablerag/route/classifier.py](tablerag/route/classifier.py); [tablerag/pipeline.py](tablerag/pipeline.py) `query()`.
 - Problem: non-English queries always route to `lookup`, silently losing the compute/SQL feature; users cannot add domain trigger words or remove noisy ones; no escape hatch when the classifier is wrong.
-- Fix:
-  - Add `route=` override to `query()` (`"compute"` / `"lookup"` / `None`=auto).
-  - Add `extra_compute_patterns` / `disable_patterns`, or accept a custom classifier callable, on `TableRAGPipeline`.
-  - Document a way to bypass regex entirely (e.g. `classifier=my_fn`).
+- Fix (shipped): `RegexClassifier` + `classify_query(extra_patterns=, disable_patterns=)`; pipeline `classifier=` / `extra_compute_patterns` / `disable_compute_patterns`; per-query `query(..., route="compute"|"lookup")`. Precedence: route > classifier > patterns > default. Tests in `tests/test_route.py`; docs in SDK.md "Customizing routing".
 
-### [ ] T1-3: Summarization is deterministic-only and non-pluggable
-- Location: [tablerag/summarize.py](tablerag/summarize.py); called directly at [tablerag/index/dual_vector.py](tablerag/index/dual_vector.py) line 64. Constants `MAX_DISTINCT_VALUES = 24`, `MAX_TEXT_CHARS = 1200`.
-- Problem: no seam to enable LLM table summarization (the "dual-vector" industry-standard pattern the product is based on); summary caps frozen and they shape retrieval quality.
-- Fix: a `summarizer=` callable slot on `DualVectorIndex` / `TableRAGPipeline` (default = current deterministic `summarize_block`); expose the two caps as params. Optionally ship an `LLMSummarizer` using the pipeline's generator.
+### [x] T1-3: Summarization is deterministic-only and non-pluggable
+- Location: [tablerag/summarize.py](tablerag/summarize.py); [tablerag/index/dual_vector.py](tablerag/index/dual_vector.py).
+- Problem: no seam to enable LLM table summarization (the dual-vector industry-standard pattern); summary caps frozen and they shape retrieval quality.
+- Fix (shipped): `Summarizer` protocol; `DeterministicSummarizer(max_distinct_values=, max_text_chars=)`; `LLMSummarizer(generator, prompt_template=)`; `summarizer=` on `DualVectorIndex` / `TableRAGPipeline` / `TableRetrieverManager` (default = `summarize_block`). Tests in `tests/test_summarize.py`; docs in SDK.md "Customizing summarization".
 
 ### [x] T1-4: Generation system prompt + prompt assembly hardcoded
 - Location: [tablerag/pipeline.py](tablerag/pipeline.py) (`SYSTEM_PROMPT`, `build_prompt()`, `render_block()`).

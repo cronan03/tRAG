@@ -45,7 +45,7 @@ from tablerag.index.embedder import Embedder, LangChainEmbedder
 from tablerag.models import Block, TableBlock, TextBlock
 from tablerag.parse import parse_document
 from tablerag.pipeline import render_block
-from tablerag.summarize import summarize_block
+from tablerag.summarize import Summarizer, summarize_block
 
 logger = logging.getLogger("tablerag")
 
@@ -93,6 +93,7 @@ class TableRetrieverManager:
     text_overlap_words: int = 0,
     similarity: str = "cosine",
     lexical_weight: float = 0.5,
+    summarizer: Summarizer | None = None,
   ) -> None:
     """
     Args:
@@ -107,12 +108,15 @@ class TableRetrieverManager:
       similarity: "cosine" | "dot" | "euclidean" (internal mode only).
       lexical_weight: 0..1 lexical/semantic blend (internal mode only;
         vectorstore mode ranks with the store's own similarity).
+      summarizer: callable `(Block) -> str` for searchable summaries.
+        Defaults to summarize_block. Same semantics as TableRAGPipeline.
     """
     self.max_table_rows = max_table_rows
     self.max_table_words = max_table_words
     self.max_text_words = max_text_words
     self.text_overlap_words = text_overlap_words
     self.vectorstore = vectorstore
+    self.summarizer = summarizer or summarize_block
 
     if vectorstore is not None:
       # Raw blocks live in our docstore; the user's vectorstore only ever
@@ -132,7 +136,10 @@ class TableRetrieverManager:
       else:
         resolved = embedder
       self.index = DualVectorIndex(
-        resolved, lexical_weight=lexical_weight, similarity=similarity
+        resolved,
+        lexical_weight=lexical_weight,
+        similarity=similarity,
+        summarizer=self.summarizer,
       )
       self.docstore = self.index.docstore
 
@@ -179,7 +186,7 @@ class TableRetrieverManager:
         self.docstore.put(block)
         summary_docs.append(
           Document(
-            page_content=summarize_block(block),
+            page_content=self.summarizer(block),
             metadata={DOC_ID_KEY: block.doc_id, "kind": block.kind},
           )
         )

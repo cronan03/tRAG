@@ -154,6 +154,10 @@ TableRAGPipeline(
     sql_examples=None,
     sql_prompt_template=None,
     sql_max_retries=1,
+    summarizer=None,
+    classifier=None,
+    extra_compute_patterns=None,
+    disable_compute_patterns=None,
 )
 ```
 
@@ -177,6 +181,10 @@ TableRAGPipeline(
 | `sql_examples` | `list[tuple[str, str]]` | `None` | Few-shot `(question, sql)` pairs rendered into the SQL prompt. |
 | `sql_prompt_template` | `str` | `None` | Full SQL prompt replacement with `{schema}`, `{question}`, `{instructions}` slots. You own the "output only SQL / NO_SQL" contract when overriding. |
 | `sql_max_retries` | `int` | `1` | Corrected attempts after a failed SQL execution (error fed back to the LLM). `0` disables retrying. |
+| `summarizer` | `Summarizer` / callable | `summarize_block` | `(Block) -> str` that builds the searchable summary embedded for retrieval. Default is deterministic (free). See [Customizing summarization](#customizing-summarization). |
+| `classifier` | callable | `classify_query` | `(question) -> "compute"\|"lookup"`. Full router replacement. Wins over pattern knobs. See [Customizing routing](#customizing-routing). |
+| `extra_compute_patterns` | `list[str]` | `None` | Regexes added to the default English aggregation list (ignored if `classifier=` is set). |
+| `disable_compute_patterns` | `list[str]` | `None` | Exact default-list entries to remove (ignored if `classifier=` is set). |
 
 > Precedence for the vector side: `vectorstore` → `vector_backend` → in-memory
 > backend built from `embedder` + `similarity`.
@@ -239,7 +247,7 @@ that calls the embedding API**) and load tables into the DuckDB sandbox.
 
 Returns `None`.
 
-### `query(question, top_k=3, system_prompt=None)`
+### `query(question, top_k=3, system_prompt=None, route=None)`
 
 Route, retrieve, optionally run SQL, and generate an answer.
 
@@ -248,6 +256,7 @@ Route, retrieve, optionally run SQL, and generate an answer.
 | `question` | `str` | **yes** | — | The user question. |
 | `top_k` | `int` | no | `3` | Number of blocks to retrieve into context. |
 | `system_prompt` | `str` | no | pipeline's `system_prompt` | Per-query persona override (multi-tenant apps, per-request language/tone). |
+| `route` | `str` | no | auto | Force `"compute"` or `"lookup"`. `None` uses the pipeline classifier when the sandbox has tables. |
 
 Returns a [`QueryResult`](#queryresult).
 
@@ -346,6 +355,80 @@ sql_prompt_template = """Write one DuckDB SELECT for the question.
 Question: {question}
 SQL:"""
 ```
+
+### Customizing summarization
+
+In the dual-vector pattern, **summaries are what get embedded**; raw tables
+stay in the docstore. The default is a free, deterministic summary (section +
+columns + distinct values + notes). Swap it with `summarizer=`:
+
+```python
+from tablerag import TableRAGPipeline, DeterministicSummarizer, LLMSummarizer
+
+# 1) Tune the deterministic caps (wider tables / longer prose)
+pipe = TableRAGPipeline(
+    generator=..., embedder=...,
+    summarizer=DeterministicSummarizer(max_distinct_values=50, max_text_chars=2000),
+)
+
+# 2) Classic LLM narrative summaries (1 LLM call per block at ingest)
+pipe = TableRAGPipeline(
+    generator=gen, embedder=...,
+    summarizer=LLMSummarizer(gen),  # optional prompt_template= with {block}
+)
+
+# 3) Fully custom — any (Block) -> str callable
+def my_summarizer(block):
+    if block.kind == "table":
+        return f"Sales grid ({block.section}): {', '.join(block.headers)}"
+    return block.content[:500]
+
+pipe = TableRAGPipeline(generator=..., embedder=..., summarizer=my_summarizer)
+```
+
+| Class / function | Role |
+| --- | --- |
+| `summarize_block(block)` | Default entry point (deterministic, default caps). |
+| `DeterministicSummarizer(max_distinct_values=24, max_text_chars=1200)` | Tunable free summarizer; also exposes `.summarize_table` / `.summarize_text`. |
+| `LLMSummarizer(generator, prompt_template=None)` | Narrative summary via any Generator; template must include `{block}`. |
+| custom callable | Any function/class with `__call__(block) -> str`. |
+
+`TableRetrieverManager(..., summarizer=...)` accepts the same slot (internal
+and external-vectorstore modes).
+
+### Customizing routing
+
+The compute vs lookup decision is deterministic and free by default (English
+aggregation regexes). Three levels of control:
+
+```python
+from tablerag import TableRAGPipeline
+from tablerag.route import RegexClassifier, DEFAULT_AGGREGATION_PATTERNS
+
+# 1) Extend / trim the default list
+pipe = TableRAGPipeline(
+    generator=..., embedder=...,
+    extra_compute_patterns=[r"\bmoyenne\b", r"\bcombien\b", r"\brun[- ]?rate\b"],
+    disable_compute_patterns=[r"\bbelow\b"],  # if it false-positives for you
+)
+
+# 2) Fully custom classifier (wins over the pattern knobs)
+def fr_classifier(q: str) -> str:
+    q = q.lower()
+    if any(w in q for w in ("total", "somme", "moyenne", "combien")):
+        return "compute"
+    return "lookup"
+
+pipe = TableRAGPipeline(generator=..., embedder=..., classifier=fr_classifier)
+
+# 3) Per-query override (always wins for that call)
+pipe.query("ambiguous question", route="compute")
+pipe.query("What does oh mean?", route="lookup")
+```
+
+Precedence: `query(route=...)` > `classifier=` > `extra_`/`disable_` patterns >
+default `classify_query`. If the sandbox has no tables, the route stays
+`lookup` even when `route="compute"` is requested.
 
 ### Choosing the embedding model
 
@@ -563,6 +646,7 @@ TableRetrieverManager(
     text_overlap_words=0,
     similarity="cosine",
     lexical_weight=0.5,
+    summarizer=None,
 )
 ```
 
@@ -572,6 +656,7 @@ TableRetrieverManager(
 | `embedder` | `Embedder \| Embeddings` | `None` | Internal mode only. Accepts a tablerag `Embedder` **or** a LangChain `Embeddings`. Optional at construction; enforced lazily when ingest/search first needs to embed. |
 | `max_table_rows`, `max_table_words`, `max_text_words`, `text_overlap_words` | | | Chunking, same semantics as the pipeline. |
 | `similarity`, `lexical_weight` | | | Internal mode only (vectorstore mode ranks with the store's metric). |
+| `summarizer` | callable | `summarize_block` | Same as `TableRAGPipeline.summarizer` — used for both internal and vectorstore modes. |
 
 **Methods**
 
@@ -614,12 +699,12 @@ For advanced/custom pipelines, the sub-packages are usable directly:
 | --- | --- |
 | `from tablerag.parse import parse_document, split_sections, try_parse_table` | Text → blocks; section splitting; single-table detection. |
 | `from tablerag.chunk import split_table_block, split_text_block` | Header-aware table splitting; word-budget prose splitting. |
-| `from tablerag.summarize import summarize_block` | Deterministic searchable summary for a block. |
+| `from tablerag.summarize import summarize_block, DeterministicSummarizer, LLMSummarizer` | Summarizer protocol implementations + default entry point. |
 | `from tablerag.generate import Generator, GeminiGenerator, LangChainGenerator, CallableGenerator` | Generation protocol + built-in adapters. |
 | `from tablerag.providers import gemini_generator, gemini_embedder, langchain_generator, langchain_embedder` | One-line provider constructors. |
 | `from tablerag.index import DualVectorIndex, DocStore, Embedder, GeminiEmbedder, LangChainEmbedder, CallableEmbedder, HashEmbedder` | Dual-vector index, docstore, embedding protocol + adapters. |
 | `from tablerag.index import InMemoryBackend, LangChainVectorStoreBackend, VectorBackend` | Vector backends + the protocol to implement your own. |
-| `from tablerag.route import classify_query` | `lookup` vs `compute` classifier. |
+| `from tablerag.route import classify_query, RegexClassifier, DEFAULT_AGGREGATION_PATTERNS` | Lookup vs compute classifier + pattern knobs. |
 | `from tablerag.compute import TableSandbox, SQLAgent` | Ephemeral DuckDB sandbox; text-to-SQL agent. |
 
 ### `VectorBackend` protocol
@@ -636,13 +721,16 @@ class VectorBackend(Protocol):
 ### `DualVectorIndex(...)`
 
 ```python
-DualVectorIndex(embedder=None, lexical_weight=0.5, backend=None, similarity="cosine")
+DualVectorIndex(embedder=None, lexical_weight=0.5, backend=None, similarity="cosine", summarizer=None)
 ```
 
 | Parameter | Default | Description |
 | --- | --- | --- |
 | `embedder` | `None` | Used by the default in-memory backend; enforced lazily on first `add_blocks`/`search`. Ignored when a `backend` is given. |
 | `lexical_weight` | `0.5` | Semantic/lexical blend. |
+| `backend` | `None` | Custom `VectorBackend`; defaults to `InMemoryBackend(embedder, similarity)`. |
+| `similarity` | `"cosine"` | In-memory backend only. |
+| `summarizer` | `summarize_block` | `(Block) -> str` for searchable summaries. |
 | `backend` | `None` | Custom `VectorBackend`; defaults to `InMemoryBackend(embedder, similarity)`. |
 | `similarity` | `"cosine"` | `cosine` / `dot` / `euclidean` (in-memory backend). |
 
