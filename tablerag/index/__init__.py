@@ -7,13 +7,22 @@ from tablerag.index.backends import (
 )
 from tablerag.index.docstore import DocStore
 from tablerag.index.dual_vector import DualVectorIndex
-from tablerag.index.embedder import GeminiEmbedder, HashEmbedder
+from tablerag.index.embedder import (
+  CallableEmbedder,
+  Embedder,
+  GeminiEmbedder,
+  HashEmbedder,
+  LangChainEmbedder,
+)
 
 __all__ = [
   "DocStore",
   "DualVectorIndex",
+  "Embedder",
   "GeminiEmbedder",
   "HashEmbedder",
+  "LangChainEmbedder",
+  "CallableEmbedder",
   "InMemoryBackend",
   "LangChainVectorStoreBackend",
   "VectorBackend",

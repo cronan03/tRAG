@@ -1,4 +1,15 @@
-"""Embedding backends: Gemini API (production) and hash-based (offline tests)."""
+"""Embedding backends, provider-agnostic.
+
+Anything satisfying the `Embedder` protocol (`embed(texts) -> list[list[float]]`)
+works:
+
+- GeminiEmbedder     native google-genai (zero extra deps)
+- LangChainEmbedder  wraps any LangChain Embeddings (OpenAI, Cohere, HF, ...)
+- CallableEmbedder   wraps any `fn(texts) -> list[list[float]]`
+- HashEmbedder       deterministic offline embedder for tests / quota-free runs
+
+See tablerag.providers for one-line constructors.
+"""
 
 from __future__ import annotations
 
@@ -7,13 +18,14 @@ import logging
 import math
 import os
 import re
-from typing import Protocol
+from typing import Callable, Protocol, runtime_checkable
 
 logger = logging.getLogger("tablerag")
 
 DEFAULT_EMBED_MODEL = "gemini-embedding-001"
 
 
+@runtime_checkable
 class Embedder(Protocol):
   def embed(self, texts: list[str]) -> list[list[float]]: ...
 
@@ -45,6 +57,34 @@ class GeminiEmbedder:
     logger.info("Embedding %d texts with %s", len(texts), self.model)
     response = self.client.models.embed_content(model=self.model, contents=texts)
     return [list(e.values) for e in response.embeddings]
+
+
+class LangChainEmbedder:
+  """Wraps any LangChain Embeddings object as an Embedder.
+
+  Duck-typed: only `.embed_documents()` is required, so langchain need not be
+  importable here.
+  """
+
+  def __init__(self, embeddings) -> None:
+    self.embeddings = embeddings
+
+  def embed(self, texts: list[str]) -> list[list[float]]:
+    if not texts:
+      return []
+    return self.embeddings.embed_documents(texts)
+
+
+class CallableEmbedder:
+  """Wraps any `fn(texts: list[str]) -> list[list[float]]` as an Embedder."""
+
+  def __init__(self, fn: Callable[[list[str]], list[list[float]]]) -> None:
+    self._fn = fn
+
+  def embed(self, texts: list[str]) -> list[list[float]]:
+    if not texts:
+      return []
+    return self._fn(texts)
 
 
 class HashEmbedder:

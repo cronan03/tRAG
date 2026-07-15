@@ -38,7 +38,12 @@ def main(argv: list[str] | None = None) -> int:
   args = build_parser().parse_args(argv)
   setup_logging(args.log_level)
 
-  pipeline = TableRAGPipeline(model=args.model)
+  from tablerag.providers import gemini_embedder, gemini_generator
+
+  pipeline = TableRAGPipeline(
+    generator=gemini_generator(model=args.model),
+    embedder=gemini_embedder(),
+  )
   pipeline.ingest(Path(args.context))
 
   if args.query:

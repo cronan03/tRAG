@@ -43,10 +43,13 @@ GEMINI_EMBED_MODEL=gemini-embedding-001   # embedding model (optional)
 
 ## Quick start
 
+tablerag is **model-agnostic**: you bring a generator and an embedder. The
+fastest path uses Gemini from your `.env`:
+
 ```python
 from tablerag import TableRAGPipeline
 
-pipeline = TableRAGPipeline()
+pipeline = TableRAGPipeline.from_env()   # Gemini generator + embedder from .env
 pipeline.ingest("data/document2.txt")
 
 result = pipeline.query(
@@ -57,24 +60,86 @@ print(result.route)    # -> "hybrid" (SQL was used)
 print(result.sql)      # -> "SELECT SUM(net_rev_usd) FROM north_america WHERE ..."
 ```
 
+Use any other provider by passing it explicitly (see
+[Choosing a model provider](#choosing-a-model-provider)):
+
+```python
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from tablerag import TableRAGPipeline, langchain_generator, langchain_embedder
+
+pipeline = TableRAGPipeline(
+    generator=langchain_generator(ChatOpenAI(model="gpt-4o")),
+    embedder=langchain_embedder(OpenAIEmbeddings(model="text-embedding-3-small")),
+)
+```
+
+---
+
+## Choosing a model provider
+
+Generation and embeddings are two independent, pluggable slots, so you can mix
+providers freely (e.g. Claude for answers, OpenAI for embeddings). tablerag
+never silently assumes a vendor — **there is no built-in default for either
+slot**, but both errors are **deferred to first use** so the API-free stages
+always work:
+
+- **Generation** — pass a `generator=` to call `query()`. The error is raised
+  lazily, only when generation is actually attempted.
+- **Embeddings** — pass an `embedder=` (or `vectorstore=`/`vector_backend=`).
+  Construction and the pure stages (`parse`, `chunk`) work without one; the
+  error is raised the first time embedding is needed (`index_blocks`/`search`).
+
+**Generation** — any object with `generate(prompt: str) -> str` (the
+`Generator` protocol). Built-in options:
+
+| Constructor | Backend |
+| --- | --- |
+| `tablerag.gemini_generator(model=None)` | native `google-genai` (zero extra deps) |
+| `tablerag.langchain_generator(chat_model)` | any LangChain chat model — `ChatOpenAI`, `ChatAnthropic`, `ChatGoogleGenerativeAI`, `ChatCohere`, local, ... |
+| `tablerag.generate.CallableGenerator(fn)` | any `fn(prompt) -> str` (custom SDKs, mocks) |
+
+**Embeddings** — any object with `embed(texts) -> list[list[float]]` (the
+`Embedder` protocol). Built-in options:
+
+| Constructor | Backend |
+| --- | --- |
+| `tablerag.gemini_embedder(model=None)` | native `google-genai` |
+| `tablerag.langchain_embedder(embeddings)` | any LangChain `Embeddings` — `OpenAIEmbeddings`, `CohereEmbeddings`, `HuggingFaceEmbeddings`, ... |
+| `tablerag.index.CallableEmbedder(fn)` | any `fn(texts) -> vectors` |
+| `tablerag.index.HashEmbedder()` | deterministic offline embedder (tests / quota-free runs) |
+
+If you supply a `vectorstore=` (or `vector_backend=`), the store does the
+embedding and no separate embedder is needed.
+
+```python
+# Claude for answers + OpenAI for embeddings
+from langchain_anthropic import ChatAnthropic
+from langchain_openai import OpenAIEmbeddings
+from tablerag import TableRAGPipeline, langchain_generator, langchain_embedder
+
+pipeline = TableRAGPipeline(
+    generator=langchain_generator(ChatAnthropic(model="claude-3-5-sonnet-latest")),
+    embedder=langchain_embedder(OpenAIEmbeddings()),
+)
+```
+
 ---
 
 ## `TableRAGPipeline`
 
 `from tablerag import TableRAGPipeline`
 
-The high-level object. Owns the vector index, the DuckDB sandbox, and the
-Gemini generation client.
+The high-level object. Owns the vector index, the DuckDB sandbox, and (when you
+provide one) the generation client.
 
 ### Constructor
 
 ```python
 TableRAGPipeline(
+    generator=None,
     embedder=None,
-    model=None,
     max_table_rows=50,
     enable_compute=True,
-    embed_model=None,
     similarity="cosine",
     lexical_weight=0.5,
     max_text_words=300,
@@ -83,18 +148,21 @@ TableRAGPipeline(
     table_overlap_rows=0,
     vector_backend=None,
     vectorstore=None,
+    system_prompt=None,
+    prompt_builder=None,
+    sql_instructions=None,
+    sql_examples=None,
+    sql_prompt_template=None,
+    sql_max_retries=1,
 )
 ```
 
-All parameters are **optional** — `TableRAGPipeline()` works out of the box.
-
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `embedder` | `Embedder` | `GeminiEmbedder(embed_model)` | Custom embedding backend. Any object with `embed(list[str]) -> list[list[float]]`. |
-| `model` | `str` | `GEMINI_MODEL` env or `gemini-3.1-flash-lite` | Gemini **generation** model. |
+| `generator` | `Generator` | `None` | Answer generator (`generate(str) -> str`). Required for `query()`; retrieval-only usage may omit it. See [Choosing a model provider](#choosing-a-model-provider). |
+| `embedder` | `Embedder` | `None` | Embedding backend (`embed(list[str]) -> list[list[float]]`). Optional at construction (so `parse`/`chunk` work without it); required — enforced lazily at `index_blocks`/`search` — unless a `vector_backend` or `vectorstore` is supplied. |
 | `max_table_rows` | `int` | `50` | Hard row cap per table slice (header re-injected on each slice). |
 | `enable_compute` | `bool` | `True` | Enable the DuckDB sandbox + SQL routing for aggregation queries. Set `False` for retrieval-only (no `duckdb` needed at query time). |
-| `embed_model` | `str` | `GEMINI_EMBED_MODEL` env or `gemini-embedding-001` | Gemini **embedding** model. Ignored if `embedder` or an external backend is supplied. |
 | `similarity` | `str` | `"cosine"` | Vector similarity for the in-memory backend: `"cosine"`, `"dot"`, or `"euclidean"`. |
 | `lexical_weight` | `float` | `0.5` | Blend of exact-token (IDF) overlap vs semantic score at retrieval, `0.0`–`1.0`. `0` = pure semantic. |
 | `max_text_words` | `int` | `300` | Word budget per prose chunk. |
@@ -102,10 +170,26 @@ All parameters are **optional** — `TableRAGPipeline()` works out of the box.
 | `max_table_words` | `int` | `None` | Optional word budget per table slice; derives a row cap from average row width (stricter of this and `max_table_rows` wins). |
 | `table_overlap_rows` | `int` | `0` | Rows repeated between consecutive table slices. Must be `< max_table_rows`. |
 | `vector_backend` | `VectorBackend` | `None` | Custom vector backend (overrides the in-memory one). |
-| `vectorstore` | LangChain `VectorStore` | `None` | Shorthand for `vector_backend=LangChainVectorStoreBackend(vectorstore)`. When set, embedding is done by the store, so `embed_model`/`similarity` are ignored. |
+| `vectorstore` | LangChain `VectorStore` | `None` | Shorthand for `vector_backend=LangChainVectorStoreBackend(vectorstore)`. When set, embedding is done by the store, so `embedder`/`similarity` are ignored. |
+| `system_prompt` | `str` | `DEFAULT_SYSTEM_PROMPT` | Persona/domain instructions for answer generation (tone, guardrails, language). tablerag's format contract is always appended. Also overridable per query. See [Customizing prompts](#customizing-prompts). |
+| `prompt_builder` | callable | `None` | Full-control prompt layout: `(system, context, question, sql=None, sql_result=None) -> str`. Replaces the default scaffold entirely. |
+| `sql_instructions` | `str` | `None` | Domain rules **appended** to the SQL agent's prompt (unit conventions, fiscal calendars, business definitions, tenant filters). Base safety rules stay intact. |
+| `sql_examples` | `list[tuple[str, str]]` | `None` | Few-shot `(question, sql)` pairs rendered into the SQL prompt. |
+| `sql_prompt_template` | `str` | `None` | Full SQL prompt replacement with `{schema}`, `{question}`, `{instructions}` slots. You own the "output only SQL / NO_SQL" contract when overriding. |
+| `sql_max_retries` | `int` | `1` | Corrected attempts after a failed SQL execution (error fed back to the LLM). `0` disables retrying. |
 
 > Precedence for the vector side: `vectorstore` → `vector_backend` → in-memory
-> backend built from `embedder`/`embed_model` + `similarity`.
+> backend built from `embedder` + `similarity`.
+
+### `TableRAGPipeline.from_env(**kwargs)`
+
+Classmethod convenience that builds a **Gemini** pipeline from your `.env`
+(`GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_EMBED_MODEL`). Any extra keyword
+arguments (chunking, similarity, ...) pass straight through to the constructor.
+
+```python
+pipeline = TableRAGPipeline.from_env(max_text_words=200)
+```
 
 ### Ingestion methods
 
@@ -155,7 +239,7 @@ that calls the embedding API**) and load tables into the DuckDB sandbox.
 
 Returns `None`.
 
-### `query(question, top_k=3)`
+### `query(question, top_k=3, system_prompt=None)`
 
 Route, retrieve, optionally run SQL, and generate an answer.
 
@@ -163,6 +247,7 @@ Route, retrieve, optionally run SQL, and generate an answer.
 | --- | --- | --- | --- | --- |
 | `question` | `str` | **yes** | — | The user question. |
 | `top_k` | `int` | no | `3` | Number of blocks to retrieve into context. |
+| `system_prompt` | `str` | no | pipeline's `system_prompt` | Per-query persona override (multi-tenant apps, per-request language/tone). |
 
 Returns a [`QueryResult`](#queryresult).
 
@@ -175,27 +260,118 @@ injected into the prompt, otherwise it falls back to `lookup`.
 
 ## Configuration cookbook
 
+### Customizing prompts
+
+Like LangChain's `ChatPromptTemplate`, the prompt is yours to control — but
+with a sensible default so the quickstart stays 3 lines. Three levels:
+
+**Level 1 — `system_prompt` (covers most cases).** Replaces the default
+persona ("you are a data analyst...") with your own tone/guardrails/language:
+
+```python
+pipeline = TableRAGPipeline(
+    generator=...,
+    embedder=...,
+    system_prompt="You are a clinical data assistant. Cite the source row "
+                  "for every value. Never infer a diagnosis.",
+)
+```
+
+tablerag keeps two concerns separate: your `system_prompt` owns the
+persona/domain, while a tablerag-owned **format contract** ("tables are
+markdown with section titles and correction notes...") is always appended, so
+a custom persona can never accidentally break table reading.
+
+**Level 2 — per-query override** (multi-tenant / mixed workloads):
+
+```python
+pipeline.query("Quel est le revenu net de NA-WEST ?", system_prompt="Répondez en français.")
+```
+
+**Level 3 — `prompt_builder` (full layout control).** For few-shot examples,
+non-English scaffolds, or custom ordering. When set, it replaces the entire
+default layout — including the format contract and the SQL-trust note — so
+you own the whole prompt:
+
+```python
+def my_prompt(system, context, question, sql=None, sql_result=None):
+    extra = f"\nComputed: {sql_result}" if sql_result else ""
+    return f"{system}\n\n<docs>\n{context}\n</docs>{extra}\nQ: {question}"
+
+pipeline = TableRAGPipeline(generator=..., embedder=..., prompt_builder=my_prompt)
+```
+
+A LangChain `ChatPromptTemplate` adapts in one line:
+
+```python
+prompt_builder=lambda s, c, q, sql=None, sql_result=None: tmpl.format(system=s, context=c, question=q)
+```
+
+The exact prompt sent to the LLM is always available afterwards as
+`result.prompt`.
+
+### Customizing the SQL agent
+
+The compute route's text-to-SQL prompt is customizable too, with a different
+default philosophy: **append, don't replace**. The base rules ("output ONLY
+SQL", "SELECT only", "NO_SQL fallback") are a safety + parse contract the
+sandbox relies on, so the common case adds domain semantics on top:
+
+```python
+pipeline = TableRAGPipeline(
+    generator=..., embedder=...,
+    # Domain rules the schema can't express:
+    sql_instructions=(
+        "Revenue columns are in USD thousands; multiply by 1000 for absolute.\n"
+        "Fiscal year starts in April (Q1 = Apr-Jun).\n"
+        "Exclude rows where status = 'void'."
+    ),
+    # Few-shot examples: the biggest accuracy lever on quirky schemas:
+    sql_examples=[
+        ("total net revenue for NA", "SELECT SUM(net_rev_usd) FROM north_america"),
+    ],
+    # More/fewer corrected attempts after a failed execution (default 1):
+    sql_max_retries=2,
+)
+```
+
+Power users can replace the whole prompt with `sql_prompt_template` (slots:
+`{schema}`, `{question}`, `{instructions}`) — at that point you own the
+"output only SQL / NO_SQL" contract yourself:
+
+```python
+sql_prompt_template = """Write one DuckDB SELECT for the question.
+{schema}
+{instructions}
+Question: {question}
+SQL:"""
+```
+
 ### Choosing the embedding model
 
 ```python
-# By model name (uses GeminiEmbedder under the hood)
-TableRAGPipeline(embed_model="gemini-embedding-001")
+# Gemini by model name
+from tablerag import gemini_embedder
+TableRAGPipeline(generator=..., embedder=gemini_embedder(model="gemini-embedding-001"))
+
+# Any LangChain Embeddings (OpenAI, Cohere, HuggingFace, ...)
+from langchain_openai import OpenAIEmbeddings
+from tablerag import langchain_embedder
+TableRAGPipeline(generator=..., embedder=langchain_embedder(OpenAIEmbeddings()))
 
 # Or a fully custom embedder (must implement .embed(list[str]) -> list[list[float]])
-from tablerag.index.embedder import Embedder
-
 class MyEmbedder:
     def embed(self, texts): ...
 
-TableRAGPipeline(embedder=MyEmbedder())
+TableRAGPipeline(generator=..., embedder=MyEmbedder())
 ```
 
 `HashEmbedder` (deterministic, offline, no API) is available for tests and
 quota-free local runs:
 
 ```python
-from tablerag.index.embedder import HashEmbedder
-TableRAGPipeline(embedder=HashEmbedder())
+from tablerag.index import HashEmbedder
+TableRAGPipeline(embedder=HashEmbedder(), enable_compute=False)  # retrieval-only
 ```
 
 ### In-memory vs external vector DB
@@ -308,7 +484,7 @@ from tablerag.evals import Evaluator, load_doc2
 from tablerag.pipeline import TableRAGPipeline
 
 samples, contexts = load_doc2()
-report = Evaluator(TableRAGPipeline(), top_k=3, generate=True).run(samples, contexts)
+report = Evaluator(TableRAGPipeline.from_env(), top_k=3, generate=True).run(samples, contexts)
 print(report.recall_at_k, report.mrr_at_k, report.exact_match)
 ```
 
@@ -393,7 +569,7 @@ TableRetrieverManager(
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `vectorstore` | LangChain `VectorStore` | `None` | If set, summaries go here; raw tables stay in tablerag's docstore. If omitted, uses the internal in-memory index. |
-| `embedder` | `Embedder \| Embeddings` | `GeminiEmbedder()` | Internal mode only. Accepts a tablerag `Embedder` **or** a LangChain `Embeddings`. |
+| `embedder` | `Embedder \| Embeddings` | `None` | Internal mode only. Accepts a tablerag `Embedder` **or** a LangChain `Embeddings`. Optional at construction; enforced lazily when ingest/search first needs to embed. |
 | `max_table_rows`, `max_table_words`, `max_text_words`, `text_overlap_words` | | | Chunking, same semantics as the pipeline. |
 | `similarity`, `lexical_weight` | | | Internal mode only (vectorstore mode ranks with the store's metric). |
 
@@ -410,9 +586,9 @@ TableRetrieverManager(
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
-manager = TableRetrieverManager()
+manager = TableRetrieverManager(embedder=GoogleGenerativeAIEmbeddings(model="models/embedding-001"))
 manager.ingest("data/document2.txt")
 retriever = manager.as_retriever(k=3)
 
@@ -439,7 +615,9 @@ For advanced/custom pipelines, the sub-packages are usable directly:
 | `from tablerag.parse import parse_document, split_sections, try_parse_table` | Text → blocks; section splitting; single-table detection. |
 | `from tablerag.chunk import split_table_block, split_text_block` | Header-aware table splitting; word-budget prose splitting. |
 | `from tablerag.summarize import summarize_block` | Deterministic searchable summary for a block. |
-| `from tablerag.index import DualVectorIndex, DocStore, GeminiEmbedder, HashEmbedder` | Dual-vector index, docstore, embedders. |
+| `from tablerag.generate import Generator, GeminiGenerator, LangChainGenerator, CallableGenerator` | Generation protocol + built-in adapters. |
+| `from tablerag.providers import gemini_generator, gemini_embedder, langchain_generator, langchain_embedder` | One-line provider constructors. |
+| `from tablerag.index import DualVectorIndex, DocStore, Embedder, GeminiEmbedder, LangChainEmbedder, CallableEmbedder, HashEmbedder` | Dual-vector index, docstore, embedding protocol + adapters. |
 | `from tablerag.index import InMemoryBackend, LangChainVectorStoreBackend, VectorBackend` | Vector backends + the protocol to implement your own. |
 | `from tablerag.route import classify_query` | `lookup` vs `compute` classifier. |
 | `from tablerag.compute import TableSandbox, SQLAgent` | Ephemeral DuckDB sandbox; text-to-SQL agent. |
@@ -463,7 +641,7 @@ DualVectorIndex(embedder=None, lexical_weight=0.5, backend=None, similarity="cos
 
 | Parameter | Default | Description |
 | --- | --- | --- |
-| `embedder` | `None` | Required unless `backend` is given. |
+| `embedder` | `None` | Used by the default in-memory backend; enforced lazily on first `add_blocks`/`search`. Ignored when a `backend` is given. |
 | `lexical_weight` | `0.5` | Semantic/lexical blend. |
 | `backend` | `None` | Custom `VectorBackend`; defaults to `InMemoryBackend(embedder, similarity)`. |
 | `similarity` | `"cosine"` | `cosine` / `dot` / `euclidean` (in-memory backend). |

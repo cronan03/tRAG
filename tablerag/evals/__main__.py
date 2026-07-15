@@ -62,14 +62,20 @@ def main(argv: list[str] | None = None) -> int:
       sample_size=args.sample_size, subset=args.subset, split=args.split or "test"
     )
 
+  from tablerag.providers import gemini_embedder, gemini_generator
+
+  # Generation (LLM) is only exercised when --generate is set.
+  generator = gemini_generator() if args.generate else None
   if args.offline:
     from tablerag.index.embedder import HashEmbedder
 
-    pipeline = TableRAGPipeline(
-      embedder=HashEmbedder(), enable_compute=args.compute
-    )
+    embedder = HashEmbedder()
   else:
-    pipeline = TableRAGPipeline(enable_compute=args.compute)
+    embedder = gemini_embedder()
+
+  pipeline = TableRAGPipeline(
+    generator=generator, embedder=embedder, enable_compute=args.compute
+  )
 
   evaluator = Evaluator(
     pipeline,

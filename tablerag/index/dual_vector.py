@@ -40,15 +40,15 @@ class DualVectorIndex:
   ) -> None:
     """
     Args:
-      embedder: tablerag Embedder; required when no backend is given.
+      embedder: tablerag Embedder. May be omitted; if so, the (default
+        in-memory) backend enforces it lazily when embedding is first needed
+        (add_blocks/search), so parse/chunk work without one.
       lexical_weight: 0..1 blend of lexical overlap vs semantic score.
       backend: custom VectorBackend (e.g. LangChainVectorStoreBackend).
         Defaults to InMemoryBackend(embedder, similarity).
       similarity: "cosine" | "dot" | "euclidean" (in-memory backend only).
     """
     if backend is None:
-      if embedder is None:
-        raise ValueError("Provide an embedder or a backend.")
       backend = InMemoryBackend(embedder, similarity=similarity)
     self.backend = backend
     self.embedder = embedder

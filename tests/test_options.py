@@ -99,9 +99,12 @@ def test_invalid_similarity_rejected():
     InMemoryBackend(HashEmbedder(), similarity="manhattan")
 
 
-def test_index_requires_embedder_or_backend():
-  with pytest.raises(ValueError):
-    DualVectorIndex()
+def test_index_defers_embedder_requirement():
+  # No embedder + no backend: construction is fine (parse/chunk paths need
+  # no embedding); the error is raised only when embedding is first needed.
+  index = DualVectorIndex()
+  with pytest.raises(ValueError, match="No embedder configured"):
+    index.add_blocks([TextBlock(content="alpha beta", section="S")])
 
 
 def test_lexical_weight_zero_equals_raw_backend_score():

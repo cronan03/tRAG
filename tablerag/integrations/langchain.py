@@ -41,7 +41,7 @@ except ImportError as exc:  # pragma: no cover
 
 from tablerag.chunk import split_table_block, split_text_block
 from tablerag.index.dual_vector import DualVectorIndex
-from tablerag.index.embedder import Embedder, GeminiEmbedder
+from tablerag.index.embedder import Embedder, LangChainEmbedder
 from tablerag.models import Block, TableBlock, TextBlock
 from tablerag.parse import parse_document
 from tablerag.pipeline import render_block
@@ -51,15 +51,9 @@ logger = logging.getLogger("tablerag")
 
 DOC_ID_KEY = "doc_id"
 
-
-class LangChainEmbedderAdapter:
-  """Wraps a LangChain Embeddings object as a tablerag Embedder."""
-
-  def __init__(self, embeddings: Embeddings) -> None:
-    self.embeddings = embeddings
-
-  def embed(self, texts: list[str]) -> list[list[float]]:
-    return self.embeddings.embed_documents(texts)
+# Backwards-compatible alias; the canonical adapter now lives in
+# tablerag.index.embedder so the core (non-LangChain) path can use it too.
+LangChainEmbedderAdapter = LangChainEmbedder
 
 
 def _block_to_document(block: Block, score: float | None = None) -> Document:
@@ -128,11 +122,13 @@ class TableRetrieverManager:
       self.index = None
       self.docstore = DocStore()
     else:
-      resolved: Embedder
+      # embedder is optional at construction; DualVectorIndex enforces it
+      # lazily when embedding is first needed (ingest/search).
+      resolved: Embedder | None
       if embedder is None:
-        resolved = GeminiEmbedder()
+        resolved = None
       elif isinstance(embedder, Embeddings):
-        resolved = LangChainEmbedderAdapter(embedder)
+        resolved = LangChainEmbedder(embedder)
       else:
         resolved = embedder
       self.index = DualVectorIndex(

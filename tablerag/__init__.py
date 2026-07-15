@@ -8,12 +8,22 @@ sandbox.
 
 from tablerag.models import QueryResult, TableBlock, TextBlock
 from tablerag.pipeline import TableRAGPipeline
+from tablerag.providers import (
+  gemini_embedder,
+  gemini_generator,
+  langchain_embedder,
+  langchain_generator,
+)
 
 __all__ = [
   "TableBlock",
   "TextBlock",
   "QueryResult",
   "TableRAGPipeline",
+  "gemini_generator",
+  "gemini_embedder",
+  "langchain_generator",
+  "langchain_embedder",
 ]
 
 __version__ = "0.1.0"

@@ -20,6 +20,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from rag_lc import get_api_key
 from tablerag.generate import get_default_model
 from tablerag.integrations.langchain import TableRetrieverManager
+from tablerag.providers import gemini_embedder
 
 ROOT = Path(__file__).parent.parent
 DOC = ROOT / "data" / "document2.txt"
@@ -36,8 +37,9 @@ def main() -> None:
     else "What is the corrected net_rev_eur for DE-442 on 2025-06-07?"
   )
 
-  # --- tablerag: table-aware ingest + retrieval (2 lines) ---
-  manager = TableRetrieverManager()
+  # --- tablerag: table-aware ingest + retrieval ---
+  # Bring your own embeddings; here we use Gemini via the provider helper.
+  manager = TableRetrieverManager(embedder=gemini_embedder())
   manager.ingest(DOC)
   retriever = manager.as_retriever(k=3)
 

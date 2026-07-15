@@ -65,10 +65,23 @@ _SCORERS = {
 }
 
 
-class InMemoryBackend:
-  """Embeds summaries via a tablerag Embedder; brute-force scored search."""
+_NO_EMBEDDER_MSG = (
+  "No embedder configured. This operation needs embeddings — pass embedder= "
+  "(or vectorstore=/vector_backend=) when constructing, e.g. "
+  "tablerag.providers.gemini_embedder() or "
+  "tablerag.providers.langchain_embedder(OpenAIEmbeddings())."
+)
 
-  def __init__(self, embedder: Embedder, similarity: str = "cosine") -> None:
+
+class InMemoryBackend:
+  """Embeds summaries via a tablerag Embedder; brute-force scored search.
+
+  The embedder may be omitted at construction; the requirement is enforced
+  lazily the first time embedding is actually needed (add/search), so pure
+  stages like parse/chunk work without one.
+  """
+
+  def __init__(self, embedder: Embedder | None = None, similarity: str = "cosine") -> None:
     if similarity not in SIMILARITY_METHODS:
       raise ValueError(
         f"similarity must be one of {SIMILARITY_METHODS}, got {similarity!r}"
@@ -79,17 +92,22 @@ class InMemoryBackend:
     self._ids: list[str] = []
     self._vectors: list[list[float]] = []
 
+  def _require_embedder(self) -> Embedder:
+    if self.embedder is None:
+      raise ValueError(_NO_EMBEDDER_MSG)
+    return self.embedder
+
   def add(self, ids: list[str], summaries: list[str]) -> None:
     if not ids:
       return
-    vectors = self.embedder.embed(summaries)
+    vectors = self._require_embedder().embed(summaries)
     self._ids.extend(ids)
     self._vectors.extend(vectors)
 
   def search(self, query: str, top_k: int) -> list[tuple[str, float]]:
     if not self._ids:
       return []
-    query_vec = self.embedder.embed([query])[0]
+    query_vec = self._require_embedder().embed([query])[0]
     scored = [
       (doc_id, self._scorer(query_vec, vec))
       for doc_id, vec in zip(self._ids, self._vectors)

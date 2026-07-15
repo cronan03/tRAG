@@ -35,7 +35,7 @@ API_DELAY_SEC = 6
 
 def run_tablerag() -> list[dict]:
   setup_logging("WARNING")
-  pipeline = TableRAGPipeline()
+  pipeline = TableRAGPipeline.from_env()
   pipeline.ingest(CONTEXT)
 
   queries = load_queries()
